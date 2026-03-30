@@ -1,10 +1,14 @@
 package com.inventory.demo.exception;
 
+import com.inventory.demo.weather.exception.CityNotFoundException;
+import com.inventory.demo.weather.exception.WeatherProviderException;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -48,7 +52,46 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles Jakarta Bean Validation failures (400).
+     * Handles city not found exceptions (404).
+     */
+    @ExceptionHandler(CityNotFoundException.class)
+    public ProblemDetail handleCityNotFound(CityNotFoundException ex) {
+        log.warn("City not found: {}", ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("City Not Found");
+        problem.setProperty(ERROR_CODE_PROPERTY, ex.getErrorCode());
+        return problem;
+    }
+
+    /**
+     * Handles weather provider unavailability (503).
+     */
+    @ExceptionHandler(WeatherProviderException.class)
+    public ProblemDetail handleWeatherProvider(WeatherProviderException ex) {
+        log.error("Weather provider error: {}", ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        problem.setTitle("Weather Provider Unavailable");
+        problem.setProperty(ERROR_CODE_PROPERTY, ex.getErrorCode());
+        return problem;
+    }
+
+    /**
+     * Handles missing required request parameters (400).
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingParameter(MissingServletRequestParameterException ex) {
+        log.warn("Missing required request parameter: {}", ex.getParameterName());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Required parameter '" + ex.getParameterName() + "' is missing");
+        problem.setTitle("Validation Failed");
+        problem.setProperty(ERROR_CODE_PROPERTY, "VALIDATION_ERROR");
+        return problem;
+    }
+
+    /**
+     * Handles Jakarta Bean Validation failures (400) from @RequestBody.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleBeanValidation(MethodArgumentNotValidException ex) {
@@ -59,6 +102,27 @@ public class GlobalExceptionHandler {
                         (first, second) -> first));
 
         log.warn("Bean validation failed: {} errors", errors.size());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Validation failed");
+        problem.setTitle("Validation Failed");
+        problem.setProperty(ERROR_CODE_PROPERTY, "VALIDATION_ERROR");
+        problem.setProperty("field_errors", errors);
+        return problem;
+    }
+
+    /**
+     * Handles Jakarta constraint violation failures (400) from @Validated on controllers
+     * (e.g., @RequestParam validation).
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, String> errors = ex.getConstraintViolations().stream()
+                .collect(Collectors.toMap(
+                        cv -> cv.getPropertyPath().toString(),
+                        cv -> cv.getMessage(),
+                        (first, second) -> first));
+
+        log.warn("Constraint violation: {} errors", errors.size());
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST, "Validation failed");
         problem.setTitle("Validation Failed");
