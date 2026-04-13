@@ -3,6 +3,8 @@ package com.inventory.demo.product.domain;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -97,6 +99,81 @@ class ProductTest {
 
             // then
             assertThat(product.getDeletedAt()).isNull();
+        }
+    }
+
+    @Nested
+    class UpdateTitleTests {
+
+        @Test
+        void shouldUpdateTitle() {
+            // given
+            Product product = Product.create("Original", "original");
+
+            // when
+            product.updateTitle("Updated");
+
+            // then
+            assertThat(product.getTitle()).isEqualTo("Updated");
+        }
+
+        @Test
+        void shouldRefreshUpdatedAtOnTitleChange() {
+            // given
+            Product product = Product.create("Original", "original");
+            Instant before = product.getUpdatedAt();
+
+            // when
+            product.updateTitle("Updated");
+
+            // then
+            assertThat(product.getUpdatedAt()).isAfterOrEqualTo(before);
+        }
+    }
+
+    @Nested
+    class UpdateHandleTests {
+
+        @Test
+        void shouldUpdateHandle() {
+            // given
+            Product product = Product.create("Product", "old-handle");
+
+            // when
+            product.updateHandle("new-handle");
+
+            // then
+            assertThat(product.getHandle()).isEqualTo("new-handle");
+        }
+
+        @Test
+        void shouldRefreshUpdatedAtOnHandleChange() {
+            // given
+            Product product = Product.create("Product", "old-handle");
+            Instant before = product.getUpdatedAt();
+
+            // when
+            product.updateHandle("new-handle");
+
+            // then
+            assertThat(product.getUpdatedAt()).isAfterOrEqualTo(before);
+        }
+    }
+
+    @Nested
+    class MarkUpdatedTests {
+
+        @Test
+        void shouldRefreshUpdatedAtTimestamp() {
+            // given
+            Product product = Product.create("Product", "product");
+            Instant before = product.getUpdatedAt();
+
+            // when
+            product.markUpdated();
+
+            // then
+            assertThat(product.getUpdatedAt()).isAfterOrEqualTo(before);
         }
     }
 }

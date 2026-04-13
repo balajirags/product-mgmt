@@ -20,4 +20,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID>, JpaSpec
      * @return true if a product with that handle exists
      */
     boolean existsByHandle(String handle);
+
+    /**
+     * Checks whether a different product with the given handle already exists.
+     * Used during update to detect duplicate handles, excluding the product being updated.
+     *
+     * @param handle the URL-friendly product handle
+     * @param id     the ID of the product being updated (excluded from check)
+     * @return true if another product with that handle exists
+     */
+    boolean existsByHandleAndIdNot(String handle, UUID id);
 }

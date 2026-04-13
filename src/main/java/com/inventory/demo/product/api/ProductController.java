@@ -74,4 +74,21 @@ public class ProductController {
         ProductResponse response = productService.getProductById(id);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Updates an existing product with partial update semantics.
+     * Only non-null fields in the request body are applied.
+     *
+     * @param id      the product UUID
+     * @param request the update request with optional fields
+     * @return the updated product with HTTP 200
+     */
+    @PostMapping("/{id}")
+    public ResponseEntity<ProductResponse> updateProduct(
+            @PathVariable UUID id,
+            @RequestBody UpdateProductRequest request) {
+        log.info("POST /api/v1/products/{} - Updating product", id);
+        ProductResponse response = productService.updateProduct(id, request);
+        return ResponseEntity.ok(response);
+    }
 }
