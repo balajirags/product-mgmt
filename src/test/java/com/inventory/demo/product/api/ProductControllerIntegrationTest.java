@@ -508,4 +508,294 @@ class ProductControllerIntegrationTest {
                         .content(requestJson))
                 .andExpect(status().isCreated());
     }
+
+    private String createProductAndReturnId(String title) throws Exception {
+        String requestJson = String.format("""
+                {
+                    "title": "%s"
+                }
+                """, title);
+        MvcResult result = mockMvc.perform(post(PRODUCTS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
+    }
+
+    @Nested
+    class UpdateProductCases {
+
+        @Test
+        void shouldUpdateTitle() throws Exception {
+            // given
+            String productId = createProductAndReturnId("Original Title");
+
+            String updateJson = """
+                    {
+                        "title": "Updated Title"
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(productId))
+                    .andExpect(jsonPath("$.title").value("Updated Title"))
+                    .andExpect(jsonPath("$.handle").value("original-title"));
+        }
+
+        @Test
+        void shouldUpdateMultipleFields() throws Exception {
+            // given
+            String productId = createProductAndReturnId("Multi Update");
+
+            String updateJson = """
+                    {
+                        "title": "New Title",
+                        "description": "New description",
+                        "subtitle": "New subtitle",
+                        "status": "PUBLISHED"
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title").value("New Title"))
+                    .andExpect(jsonPath("$.description").value("New description"))
+                    .andExpect(jsonPath("$.subtitle").value("New subtitle"))
+                    .andExpect(jsonPath("$.status").value("PUBLISHED"));
+        }
+
+        @Test
+        void shouldUpdateHandle() throws Exception {
+            // given
+            String productId = createProductAndReturnId("Handle Update Test");
+
+            String updateJson = """
+                    {
+                        "handle": "new-custom-handle"
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.handle").value("new-custom-handle"));
+        }
+
+        @Test
+        void shouldPreserveUnchangedFields() throws Exception {
+            // given — create product with all fields
+            String createJson = """
+                    {
+                        "title": "Full Product",
+                        "description": "Original description",
+                        "subtitle": "Original subtitle",
+                        "weight": 1.5,
+                        "metadata": "{\\"key\\":\\"value\\"}"
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — update only title
+            String updateJson = """
+                    {
+                        "title": "Updated Title Only"
+                    }
+                    """;
+
+            // then — other fields preserved
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title").value("Updated Title Only"))
+                    .andExpect(jsonPath("$.description").value("Original description"))
+                    .andExpect(jsonPath("$.subtitle").value("Original subtitle"))
+                    .andExpect(jsonPath("$.weight").value(1.5))
+                    .andExpect(jsonPath("$.metadata").value("{\"key\":\"value\"}"));
+        }
+
+        @Test
+        void shouldReturnOk_whenEmptyBody() throws Exception {
+            // given
+            String productId = createProductAndReturnId("Empty Body Test");
+
+            // when / then — no-op update
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title").value("Empty Body Test"));
+        }
+
+        @Test
+        void shouldRefreshUpdatedAtTimestamp() throws Exception {
+            // given
+            String createJson = """
+                    {
+                        "title": "Timestamp Test"
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+            String originalUpdatedAt = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("updated_at").asText();
+
+            // when
+            String updateJson = """
+                    {
+                        "title": "Updated Timestamp"
+                    }
+                    """;
+            MvcResult updateResult = mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            String newUpdatedAt = objectMapper.readTree(
+                    updateResult.getResponse().getContentAsString()).get("updated_at").asText();
+
+            // then
+            assertThat(newUpdatedAt).isNotEqualTo(originalUpdatedAt);
+        }
+
+        @Test
+        void shouldUpdateStatusLifecycle() throws Exception {
+            // given — create DRAFT product
+            String productId = createProductAndReturnId("Status Lifecycle");
+
+            // when — transition to PUBLISHED
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"PUBLISHED\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+            // then — verify via GET
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("PUBLISHED"));
+        }
+
+        @Test
+        void shouldAllowSameHandleOnSameProduct() throws Exception {
+            // given
+            String createJson = """
+                    {
+                        "title": "Same Handle",
+                        "handle": "my-handle"
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — update with same handle (should not conflict with itself)
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"handle\": \"my-handle\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.handle").value("my-handle"));
+        }
+    }
+
+    @Nested
+    class UpdateProductFailureCases {
+
+        @Test
+        void shouldReturnNotFound_whenProductDoesNotExist() throws Exception {
+            // given
+            UUID unknownId = UUID.randomUUID();
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", unknownId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\": \"New Title\"}"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error_code").value("RESOURCE_NOT_FOUND"));
+        }
+
+        @Test
+        void shouldReturnConflict_whenDuplicateHandle() throws Exception {
+            // given — create two products
+            String firstId = createProductAndReturnId("First Product");
+            String createJson = """
+                    {
+                        "title": "Second Product",
+                        "handle": "taken-handle"
+                    }
+                    """;
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated());
+
+            // when — try to set first product's handle to second's
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", firstId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"handle\": \"taken-handle\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("DUPLICATE_HANDLE"));
+        }
+
+        @Test
+        void shouldReturnConflict_whenInvalidStatus() throws Exception {
+            // given
+            String productId = createProductAndReturnId("Invalid Status Test");
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\": \"BOGUS\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("INVALID_STATUS"));
+        }
+
+        @Test
+        void shouldReturnConflict_whenBlankTitle() throws Exception {
+            // given
+            String productId = createProductAndReturnId("Blank Title Test");
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\": \"   \"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("BLANK_TITLE"));
+        }
+
+        @Test
+        void shouldReturnBadRequest_whenInvalidUuid() throws Exception {
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL + "/not-a-uuid")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\": \"Test\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error_code").value("INVALID_PARAMETER"));
+        }
+    }
 }

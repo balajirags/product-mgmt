@@ -180,6 +180,33 @@ public class Product {
         this.externalId = externalId;
     }
 
+    /**
+     * Updates the product title.
+     *
+     * @param title the new product title (must not be blank)
+     */
+    public void updateTitle(String title) {
+        this.title = title;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Updates the URL-friendly handle.
+     *
+     * @param handle the new product handle
+     */
+    public void updateHandle(String handle) {
+        this.handle = handle;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Refreshes the updatedAt timestamp to the current instant.
+     */
+    public void markUpdated() {
+        this.updatedAt = Instant.now();
+    }
+
     public UUID getId() {
         return id;
     }

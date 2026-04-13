@@ -5,6 +5,7 @@ import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.PagedProductResponse;
 import com.inventory.demo.product.api.ProductResponse;
+import com.inventory.demo.product.api.UpdateProductRequest;
 import com.inventory.demo.product.domain.Product;
 import com.inventory.demo.product.repository.ProductRepository;
 import org.junit.jupiter.api.Nested;
@@ -453,6 +454,302 @@ class ProductServiceTest {
 
             // then
             assertThat(response).isNotNull();
+        }
+    }
+
+    private static UpdateProductRequest updateRequest(String title, String handle, String status,
+                                                       String description, String subtitle,
+                                                       BigDecimal weight, BigDecimal height,
+                                                       BigDecimal width, BigDecimal length,
+                                                       String metadata, String externalId) {
+        return new UpdateProductRequest(title, handle, status, description, subtitle,
+                weight, height, width, length, metadata, externalId);
+    }
+
+    private static UpdateProductRequest titleOnlyUpdate(String title) {
+        return updateRequest(title, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    private static UpdateProductRequest emptyUpdate() {
+        return updateRequest(null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Nested
+    class UpdateProductSuccessCases {
+
+        @Test
+        void shouldUpdateTitle() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Old Title", "old-title");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = titleOnlyUpdate("New Title");
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.title()).isEqualTo("New Title");
+            verify(productRepository).save(any(Product.class));
+        }
+
+        @Test
+        void shouldUpdateHandle() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "old-handle");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.existsByHandleAndIdNot("new-handle", productId)).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = updateRequest(null, "new-handle", null, null, null,
+                    null, null, null, null, null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.handle()).isEqualTo("new-handle");
+        }
+
+        @Test
+        void shouldUpdateStatus() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "my-product");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = updateRequest(null, null, "PUBLISHED", null, null,
+                    null, null, null, null, null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.status()).isEqualTo("PUBLISHED");
+        }
+
+        @Test
+        void shouldUpdateMultipleFieldsAtOnce() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Old Title", "old-handle");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.existsByHandleAndIdNot("new-handle", productId)).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = updateRequest("New Title", "new-handle", "PUBLISHED",
+                    "New description", "New subtitle",
+                    new BigDecimal("2.5"), new BigDecimal("20.0"),
+                    new BigDecimal("10.0"), new BigDecimal("5.0"),
+                    "{\"updated\":true}", "EXT-002");
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.title()).isEqualTo("New Title");
+            assertThat(response.handle()).isEqualTo("new-handle");
+            assertThat(response.status()).isEqualTo("PUBLISHED");
+            assertThat(response.description()).isEqualTo("New description");
+            assertThat(response.subtitle()).isEqualTo("New subtitle");
+            assertThat(response.weight()).isEqualByComparingTo(new BigDecimal("2.5"));
+            assertThat(response.metadata()).isEqualTo("{\"updated\":true}");
+            assertThat(response.externalId()).isEqualTo("EXT-002");
+        }
+
+        @Test
+        void shouldReturnUnchangedProduct_whenNoFieldsProvided() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Unchanged Product", "unchanged");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            UpdateProductRequest request = emptyUpdate();
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.title()).isEqualTo("Unchanged Product");
+            assertThat(response.handle()).isEqualTo("unchanged");
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldIgnoreNullFields() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Original", "original");
+            product.describeAs("Original description");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = titleOnlyUpdate("Updated Title");
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.title()).isEqualTo("Updated Title");
+            assertThat(response.description()).isEqualTo("Original description");
+        }
+
+        @Test
+        void shouldHandleCaseInsensitiveStatusOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "my-product");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = updateRequest(null, null, "published", null, null,
+                    null, null, null, null, null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.status()).isEqualTo("PUBLISHED");
+        }
+
+        @Test
+        void shouldUpdateDimensionsPartially() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "my-product");
+            product.applyDimensions(new BigDecimal("1.0"), new BigDecimal("2.0"),
+                    new BigDecimal("3.0"), new BigDecimal("4.0"));
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = updateRequest(null, null, null, null, null,
+                    new BigDecimal("9.9"), null, null, null, null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.weight()).isEqualByComparingTo(new BigDecimal("9.9"));
+            assertThat(response.height()).isEqualByComparingTo(new BigDecimal("2.0"));
+            assertThat(response.width()).isEqualByComparingTo(new BigDecimal("3.0"));
+            assertThat(response.length()).isEqualByComparingTo(new BigDecimal("4.0"));
+        }
+
+        @Test
+        void shouldTrimHandleOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "old-handle");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.existsByHandleAndIdNot("trimmed-handle", productId)).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = updateRequest(null, "  trimmed-handle  ", null,
+                    null, null, null, null, null, null, null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.handle()).isEqualTo("trimmed-handle");
+        }
+    }
+
+    @Nested
+    class UpdateProductFailureCases {
+
+        @Test
+        void shouldThrowNotFound_whenProductDoesNotExist() {
+            // given
+            UUID unknownId = UUID.randomUUID();
+            when(productRepository.findById(unknownId)).thenReturn(Optional.empty());
+
+            UpdateProductRequest request = titleOnlyUpdate("New Title");
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(unknownId, request))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("Product")
+                    .hasMessageContaining(unknownId.toString());
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectDuplicateHandleOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "old-handle");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.existsByHandleAndIdNot("taken-handle", productId)).thenReturn(true);
+
+            UpdateProductRequest request = updateRequest(null, "taken-handle", null, null, null,
+                    null, null, null, null, null, null);
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(productId, request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("taken-handle")
+                    .hasMessageContaining("already exists");
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectInvalidStatusOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "my-product");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            UpdateProductRequest request = updateRequest(null, null, "BOGUS", null, null,
+                    null, null, null, null, null, null);
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(productId, request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Invalid product status")
+                    .hasMessageContaining("BOGUS");
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectBlankTitle() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "my-product");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            UpdateProductRequest request = titleOnlyUpdate("   ");
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(productId, request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("title must not be blank");
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectEmptyTitle() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("My Product", "my-product");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            UpdateProductRequest request = titleOnlyUpdate("");
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(productId, request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("title must not be blank");
+
+            verify(productRepository, never()).save(any());
         }
     }
 }
