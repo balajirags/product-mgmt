@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -128,6 +129,21 @@ public class GlobalExceptionHandler {
         problem.setTitle("Validation Failed");
         problem.setProperty(ERROR_CODE_PROPERTY, "VALIDATION_ERROR");
         problem.setProperty("field_errors", errors);
+        return problem;
+    }
+
+    /**
+     * Handles type conversion failures for path/query parameters (400).
+     * E.g., an invalid UUID format in a path variable.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("Type mismatch for parameter '{}': {}", ex.getName(), ex.getValue());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Invalid value for parameter '" + ex.getName() + "': " + ex.getValue());
+        problem.setTitle("Invalid Parameter");
+        problem.setProperty(ERROR_CODE_PROPERTY, "INVALID_PARAMETER");
         return problem;
     }
 

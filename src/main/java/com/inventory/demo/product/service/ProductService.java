@@ -1,6 +1,7 @@
 package com.inventory.demo.product.service;
 
 import com.inventory.demo.exception.BusinessRuleException;
+import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.domain.Product;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * Service for managing product creation and related business operations.
@@ -57,6 +59,23 @@ public class ProductService {
                 saved.getId(), saved.getHandle(), saved.getStatus());
 
         return ProductResponse.fromEntity(saved);
+    }
+
+    /**
+     * Retrieves a product by its unique identifier.
+     *
+     * @param id the product UUID
+     * @return the product as a response DTO
+     * @throws ResourceNotFoundException if no product exists with the given ID
+     */
+    @Transactional(readOnly = true)
+    public ProductResponse getProductById(UUID id) {
+        log.info("Retrieving product: id={}", id);
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+
+        return ProductResponse.fromEntity(product);
     }
 
     /**

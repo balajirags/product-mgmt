@@ -3,6 +3,7 @@ package com.inventory.demo.product.api;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.GlobalExceptionHandler;
+import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.service.ProductService;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -245,6 +247,66 @@ class ProductControllerTest {
                             .content(requestJson))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.error_code").value("INVALID_STATUS"));
+        }
+    }
+
+    @Nested
+    class GetProductByIdSuccessCases {
+
+        @Test
+        void shouldReturnOk_whenProductExists() throws Exception {
+            // given
+            UUID productId = UUID.randomUUID();
+            ProductResponse response = sampleResponse();
+            when(productService.getProductById(productId)).thenReturn(response);
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title").value("Test Product"))
+                    .andExpect(jsonPath("$.handle").value("test-product"))
+                    .andExpect(jsonPath("$.status").value("DRAFT"));
+        }
+
+        @Test
+        void shouldReturnSnakeCaseFields_whenProductRetrieved() throws Exception {
+            // given
+            UUID productId = UUID.randomUUID();
+            when(productService.getProductById(productId)).thenReturn(sampleResponse());
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.is_giftcard").exists())
+                    .andExpect(jsonPath("$.external_id").exists())
+                    .andExpect(jsonPath("$.created_at").exists())
+                    .andExpect(jsonPath("$.updated_at").exists());
+        }
+    }
+
+    @Nested
+    class GetProductByIdFailureCases {
+
+        @Test
+        void shouldReturnNotFound_whenProductDoesNotExist() throws Exception {
+            // given
+            UUID unknownId = UUID.randomUUID();
+            when(productService.getProductById(unknownId))
+                    .thenThrow(new ResourceNotFoundException("Product", unknownId));
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", unknownId))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error_code").value("RESOURCE_NOT_FOUND"))
+                    .andExpect(jsonPath("$.detail").value("Product not found with identifier: " + unknownId));
+        }
+
+        @Test
+        void shouldReturnBadRequest_whenInvalidUuidFormat() throws Exception {
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/not-a-uuid"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error_code").value("INVALID_PARAMETER"));
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.inventory.demo.product.service;
 
 import com.inventory.demo.exception.BusinessRuleException;
+import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.domain.Product;
@@ -14,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -258,6 +261,39 @@ class ProductServiceTest {
         void shouldHandleMultipleSpaces() {
             assertThat(productService.generateSlug("Product   With   Spaces"))
                     .isEqualTo("product-with-spaces");
+        }
+    }
+
+    @Nested
+    class GetProductByIdCases {
+
+        @Test
+        void shouldReturnProductWhenFound() {
+            // given
+            Product product = Product.create("Existing Product", "existing-product");
+            UUID productId = product.getId();
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            // when
+            ProductResponse response = productService.getProductById(productId);
+
+            // then
+            assertThat(response.title()).isEqualTo("Existing Product");
+            assertThat(response.handle()).isEqualTo("existing-product");
+            assertThat(response.status()).isEqualTo("DRAFT");
+        }
+
+        @Test
+        void shouldThrowNotFoundWhenProductDoesNotExist() {
+            // given
+            UUID unknownId = UUID.randomUUID();
+            when(productRepository.findById(unknownId)).thenReturn(Optional.empty());
+
+            // when / then
+            assertThatThrownBy(() -> productService.getProductById(unknownId))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining("Product")
+                    .hasMessageContaining(unknownId.toString());
         }
     }
 }
