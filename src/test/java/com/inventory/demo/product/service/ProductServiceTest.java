@@ -6,10 +6,13 @@ import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.PagedProductResponse;
 import com.inventory.demo.product.api.ProductOptionRequest;
 import com.inventory.demo.product.api.ProductResponse;
+import com.inventory.demo.product.api.ProductVariantRequest;
 import com.inventory.demo.product.api.UpdateProductRequest;
 import com.inventory.demo.product.domain.Product;
 import com.inventory.demo.product.domain.ProductOption;
+import com.inventory.demo.product.domain.ProductVariant;
 import com.inventory.demo.product.repository.ProductRepository;
+import com.inventory.demo.product.repository.ProductVariantRepository;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +29,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,22 +47,25 @@ class ProductServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private ProductVariantRepository variantRepository;
+
     @InjectMocks
     private ProductService productService;
 
     private static CreateProductRequest minimalRequest(String title) {
         return new CreateProductRequest(title, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest requestWithHandle(String title, String handle) {
         return new CreateProductRequest(title, handle, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest requestWithStatus(String title, String status) {
         return new CreateProductRequest(title, null, status, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest fullRequest() {
@@ -74,6 +81,7 @@ class ProductServiceTest {
                 new BigDecimal("3.0"),
                 "{\"color\":\"red\"}",
                 "EXT-001",
+                null,
                 null
         );
     }
@@ -466,7 +474,7 @@ class ProductServiceTest {
                                                        BigDecimal width, BigDecimal length,
                                                        String metadata, String externalId) {
         return new UpdateProductRequest(title, handle, status, description, subtitle,
-                weight, height, width, length, metadata, externalId, null);
+                weight, height, width, length, metadata, externalId, null, null);
     }
 
     private static UpdateProductRequest titleOnlyUpdate(String title) {
@@ -768,7 +776,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, options);
+                    null, null, null, null, null, null, options, null);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -806,7 +814,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, options);
+                    null, null, null, null, null, null, options, null);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
 
             // when / then
@@ -834,7 +842,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options);
+                    null, null, null, null, null, null, options, null);
 
             // when
             ProductResponse response = productService.updateProduct(productId, request);
@@ -862,7 +870,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options);
+                    null, null, null, null, null, null, options, null);
 
             // when
             ProductResponse response = productService.updateProduct(productId, request);
@@ -890,7 +898,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options);
+                    null, null, null, null, null, null, options, null);
 
             // when
             productService.updateProduct(productId, request);
@@ -912,7 +920,7 @@ class ProductServiceTest {
 
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null);
 
             // when
             productService.updateProduct(productId, request);
@@ -935,12 +943,347 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options);
+                    null, null, null, null, null, null, options, null);
 
             // when / then
             assertThatThrownBy(() -> productService.updateProduct(productId, request))
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessageContaining("Duplicate option title");
+
+            verify(productRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    class CreateProductWithVariantsCases {
+
+        @Test
+        void shouldCreateProductWithVariants() {
+            // given
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Size", List.of("S", "M"))
+            );
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("Small", "SKU-S", null,
+                            null, null, null, null, null, null, Map.of("Size", "S")),
+                    new ProductVariantRequest("Medium", "SKU-M", null,
+                            null, null, null, null, null, null, Map.of("Size", "M"))
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, options, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.variants()).hasSize(2);
+            assertThat(response.variants().get(0).title()).isEqualTo("Small");
+            assertThat(response.variants().get(0).sku()).isEqualTo("SKU-S");
+            assertThat(response.variants().get(1).title()).isEqualTo("Medium");
+            assertThat(response.variants().get(1).sku()).isEqualTo("SKU-M");
+        }
+
+        @Test
+        void shouldCreateProductWithNoVariants() {
+            // given
+            CreateProductRequest request = minimalRequest("Simple Product");
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.variants()).isEmpty();
+        }
+
+        @Test
+        void shouldAutoGenerateTitleFromOptionValues() {
+            // given
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Size", List.of("S")),
+                    new ProductOptionRequest("Color", List.of("Red"))
+            );
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest(null, "SKU-SR", null,
+                            null, null, null, null, null, null, Map.of("Size", "S", "Color", "Red"))
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, options, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then — title should be auto-generated from option values
+            assertThat(response.variants()).hasSize(1);
+        }
+
+        @Test
+        void shouldUseDefaultTitleWhenNoOptionValues() {
+            // given
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest(null, null, null,
+                            null, null, null, null, null, null, null)
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.variants()).hasSize(1);
+            assertThat(response.variants().get(0).title()).isEqualTo("T-Shirt - Default");
+        }
+
+        @Test
+        void shouldRejectDuplicateSkuOnCreate() {
+            // given
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("V1", "DUPE-SKU", null,
+                            null, null, null, null, null, null, null)
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(variantRepository.existsBySku("DUPE-SKU")).thenReturn(true);
+
+            // when / then
+            assertThatThrownBy(() -> productService.createProduct(request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("SKU")
+                    .hasMessageContaining("DUPE-SKU");
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectDuplicateBarcodeOnCreate() {
+            // given
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("V1", null, "DUPE-BC",
+                            null, null, null, null, null, null, null)
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(variantRepository.existsByBarcode("DUPE-BC")).thenReturn(true);
+
+            // when / then
+            assertThatThrownBy(() -> productService.createProduct(request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("barcode")
+                    .hasMessageContaining("DUPE-BC");
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldAllowNullSkuOnCreate() {
+            // given
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("No SKU Variant", null, null,
+                            null, null, null, null, null, null, null)
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.variants()).hasSize(1);
+            assertThat(response.variants().get(0).sku()).isNull();
+        }
+
+        @Test
+        void shouldApplyVariantDimensionsAndFlags() {
+            // given
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("Heavy Variant", "SKU-HV", null,
+                            new BigDecimal("5.0"), new BigDecimal("20.0"),
+                            new BigDecimal("10.0"), new BigDecimal("8.0"),
+                            true, true, null)
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.variants()).hasSize(1);
+            assertThat(response.variants().get(0).weight()).isEqualByComparingTo(new BigDecimal("5.0"));
+            assertThat(response.variants().get(0).manageInventory()).isTrue();
+            assertThat(response.variants().get(0).allowBackorder()).isTrue();
+        }
+
+        @Test
+        void shouldRejectVariantWithInvalidOptionReference() {
+            // given — variant references an option that doesn't exist
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("Bad Variant", null, null,
+                            null, null, null, null, null, null, Map.of("NonExistent", "Value"))
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+
+            // when / then
+            assertThatThrownBy(() -> productService.createProduct(request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Option value not found");
+
+            verify(productRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    class UpdateProductVariantsCases {
+
+        @Test
+        void shouldAddVariantsToExistingProduct() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("Default", "SKU-001", null,
+                            null, null, null, null, null, null, null)
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.variants()).hasSize(1);
+            assertThat(response.variants().get(0).title()).isEqualTo("Default");
+            assertThat(response.variants().get(0).sku()).isEqualTo("SKU-001");
+        }
+
+        @Test
+        void shouldSoftDeleteRemovedVariants() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            ProductVariant v1 = product.addVariant("V1");
+            v1.assignSku("SKU-KEEP");
+            ProductVariant v2 = product.addVariant("V2");
+            v2.assignSku("SKU-REMOVE");
+
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // Update with only SKU-KEEP — SKU-REMOVE should be soft-deleted
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("V1 Updated", "SKU-KEEP", null,
+                            null, null, null, null, null, null, null)
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+
+            // when
+            productService.updateProduct(productId, request);
+
+            // then — V2 should be soft-deleted
+            assertThat(product.getVariants())
+                    .filteredOn(v -> "SKU-REMOVE".equals(v.getSku()))
+                    .allSatisfy(v -> assertThat(v.getDeletedAt()).isNotNull());
+        }
+
+        @Test
+        void shouldUpdateExistingVariantBySku() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            ProductVariant existing = product.addVariant("Original Title");
+            existing.assignSku("SKU-001");
+
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("Updated Title", "SKU-001", "NEW-BC",
+                            new BigDecimal("2.0"), null, null, null, true, null, null)
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(existing.getTitle()).isEqualTo("Updated Title");
+            assertThat(existing.getBarcode()).isEqualTo("NEW-BC");
+            assertThat(existing.isManageInventory()).isTrue();
+        }
+
+        @Test
+        void shouldNotModifyVariantsWhenVariantsFieldIsNull() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            product.addVariant("Existing Variant").assignSku("SKU-001");
+
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, null);
+
+            // when
+            productService.updateProduct(productId, request);
+
+            // then — variants should remain untouched
+            assertThat(product.getVariants()).hasSize(1);
+            assertThat(product.getVariants().get(0).getSku()).isEqualTo("SKU-001");
+        }
+
+        @Test
+        void shouldRejectDuplicateSkuOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            List<ProductVariantRequest> variants = List.of(
+                    new ProductVariantRequest("V1", "DUPE-SKU", null,
+                            null, null, null, null, null, null, null)
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, variants);
+            when(variantRepository.existsBySku("DUPE-SKU")).thenReturn(true);
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(productId, request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("SKU");
 
             verify(productRepository, never()).save(any());
         }

@@ -6,12 +6,16 @@ import com.inventory.demo.product.api.PagedProductResponse;
 import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.ProductOptionRequest;
 import com.inventory.demo.product.api.ProductResponse;
+import com.inventory.demo.product.api.ProductVariantRequest;
 import com.inventory.demo.product.api.UpdateProductRequest;
 import com.inventory.demo.product.domain.Product;
 import com.inventory.demo.product.domain.ProductOption;
+import com.inventory.demo.product.domain.ProductOptionValue;
 import com.inventory.demo.product.domain.ProductStatus;
+import com.inventory.demo.product.domain.ProductVariant;
 import com.inventory.demo.product.repository.ProductRepository;
 import com.inventory.demo.product.repository.ProductSpecifications;
+import com.inventory.demo.product.repository.ProductVariantRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -22,9 +26,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,7 +38,7 @@ import java.util.UUID;
  * Service for managing product creation and related business operations.
  */
 @Service
-@SuppressWarnings({"PMD.GodClass", "PMD.CyclomaticComplexity"}) // Service handles full product CRUD lifecycle with many small methods
+@SuppressWarnings({"PMD.GodClass", "PMD.CyclomaticComplexity", "PMD.ExcessiveImports", "PMD.CouplingBetweenObjects", "PMD.AvoidDuplicateLiterals"}) // Service handles full product + variant CRUD lifecycle with many small methods
 public class ProductService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
@@ -41,6 +47,9 @@ public class ProductService {
     private static final String INVALID_STATUS_ERROR = "INVALID_STATUS";
     private static final String BLANK_TITLE_ERROR = "BLANK_TITLE";
     private static final String DUPLICATE_OPTION_TITLE_ERROR = "DUPLICATE_OPTION_TITLE";
+    private static final String DUPLICATE_SKU_ERROR = "DUPLICATE_SKU";
+    private static final String DUPLICATE_BARCODE_ERROR = "DUPLICATE_BARCODE";
+    private static final String VARIANT_OPTION_NOT_FOUND_ERROR = "VARIANT_OPTION_NOT_FOUND";
     private static final String SLUG_SEPARATOR = "-";
     private static final String NON_ALPHANUMERIC_PATTERN = "[^a-z0-9\\-]";
     private static final String CONSECUTIVE_HYPHENS_PATTERN = "-{2,}";
@@ -49,9 +58,11 @@ public class ProductService {
     private static final String DEFAULT_SORT_FIELD = "createdAt";
 
     private final ProductRepository productRepository;
+    private final ProductVariantRepository variantRepository;
 
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository, ProductVariantRepository variantRepository) {
         this.productRepository = productRepository;
+        this.variantRepository = variantRepository;
     }
 
     /**
@@ -73,6 +84,7 @@ public class ProductService {
         applyOptionalStatus(product, request.status());
         applyOptionalFields(product, request);
         applyOptions(product, request.options());
+        applyVariants(product, request.variants());
 
         Product saved = productRepository.save(product);
         log.info("Product created successfully: id={}, handle={}, status={}",
@@ -139,8 +151,9 @@ public class ProductService {
 
         boolean modified = applyUpdates(product, id, request);
         boolean optionsModified = applyOptionsUpdate(product, request.options());
+        boolean variantsModified = applyVariantsUpdate(product, request.variants());
 
-        if (modified || optionsModified) {
+        if (modified || optionsModified || variantsModified) {
             product.markUpdated();
             Product saved = productRepository.save(product);
             log.info("Product updated successfully: id={}, handle={}", saved.getId(), saved.getHandle());
@@ -427,5 +440,188 @@ public class ProductService {
                         "Duplicate option title: '" + req.title() + "'");
             }
         }
+    }
+
+    private void applyVariants(Product product, List<ProductVariantRequest> variantRequests) {
+        if (variantRequests == null || variantRequests.isEmpty()) {
+            return;
+        }
+        for (ProductVariantRequest variantReq : variantRequests) {
+            validateSkuUniqueness(variantReq.sku(), null);
+            validateBarcodeUniqueness(variantReq.barcode(), null);
+            createVariantFromRequest(product, variantReq);
+        }
+        log.info("Applied {} variants to product", variantRequests.size());
+    }
+
+    private boolean applyVariantsUpdate(Product product, List<ProductVariantRequest> variantRequests) {
+        if (variantRequests == null) {
+            return false;
+        }
+        softDeleteExistingVariants(product, variantRequests);
+        mergeVariants(product, variantRequests);
+        log.info("Updated variants for product: id={}, variantCount={}", product.getId(), variantRequests.size());
+        return true;
+    }
+
+    private void softDeleteExistingVariants(Product product, List<ProductVariantRequest> variantRequests) {
+        Set<String> requestedSkus = new HashSet<>();
+        for (ProductVariantRequest req : variantRequests) {
+            if (req.sku() != null) {
+                requestedSkus.add(req.sku());
+            }
+        }
+
+        for (ProductVariant existing : product.getVariants()) {
+            if (existing.getDeletedAt() != null) {
+                continue;
+            }
+            boolean retained = existing.getSku() != null && requestedSkus.contains(existing.getSku());
+            if (!retained) {
+                existing.softDelete();
+            }
+        }
+    }
+
+    private void mergeVariants(Product product, List<ProductVariantRequest> variantRequests) {
+        for (ProductVariantRequest variantReq : variantRequests) {
+            ProductVariant existing = findExistingVariantBySku(product, variantReq.sku());
+            if (existing != null) {
+                updateExistingVariant(existing, variantReq, product);
+            } else {
+                validateSkuUniqueness(variantReq.sku(), null);
+                validateBarcodeUniqueness(variantReq.barcode(), null);
+                createVariantFromRequest(product, variantReq);
+            }
+        }
+    }
+
+    private void updateExistingVariant(ProductVariant variant, ProductVariantRequest request, Product product) {
+        if (request.title() != null) {
+            variant.updateTitle(request.title());
+        }
+        if (request.sku() != null && !request.sku().equals(variant.getSku())) {
+            validateSkuUniqueness(request.sku(), variant.getId());
+            variant.assignSku(request.sku());
+        }
+        if (request.barcode() != null && !request.barcode().equals(variant.getBarcode())) {
+            validateBarcodeUniqueness(request.barcode(), variant.getId());
+            variant.assignBarcode(request.barcode());
+        }
+        applyVariantDimensions(variant, request);
+        applyVariantFlags(variant, request);
+        resolveAndAssignOptionValues(variant, product, request.optionValues());
+    }
+
+    private ProductVariant createVariantFromRequest(Product product, ProductVariantRequest request) {
+        String title = resolveVariantTitle(request, product);
+        ProductVariant variant = product.addVariant(title);
+
+        if (request.sku() != null) {
+            variant.assignSku(request.sku());
+        }
+        if (request.barcode() != null) {
+            variant.assignBarcode(request.barcode());
+        }
+        applyVariantDimensions(variant, request);
+        applyVariantFlags(variant, request);
+        resolveAndAssignOptionValues(variant, product, request.optionValues());
+
+        return variant;
+    }
+
+    private String resolveVariantTitle(ProductVariantRequest request, Product product) {
+        if (request.title() != null && !request.title().isBlank()) {
+            return request.title();
+        }
+        if (request.optionValues() != null && !request.optionValues().isEmpty()) {
+            return String.join(" / ", request.optionValues().values());
+        }
+        return product.getTitle() + " - Default";
+    }
+
+    private void resolveAndAssignOptionValues(ProductVariant variant, Product product,
+                                              Map<String, String> optionValueMap) {
+        if (optionValueMap == null || optionValueMap.isEmpty()) {
+            return;
+        }
+        List<ProductOptionValue> resolved = new ArrayList<>();
+        for (Map.Entry<String, String> entry : optionValueMap.entrySet()) {
+            ProductOptionValue optionValue = findOptionValue(product, entry.getKey(), entry.getValue());
+            resolved.add(optionValue);
+        }
+        variant.replaceOptionValues(resolved);
+    }
+
+    private ProductOptionValue findOptionValue(Product product, String optionTitle, String valueName) {
+        for (ProductOption option : product.getOptions()) {
+            if (option.getDeletedAt() != null || !option.getTitle().equals(optionTitle)) {
+                continue;
+            }
+            for (ProductOptionValue val : option.getValues()) {
+                if (val.getDeletedAt() == null && val.getValue().equals(valueName)) {
+                    return val;
+                }
+            }
+        }
+        throw new BusinessRuleException(VARIANT_OPTION_NOT_FOUND_ERROR,
+                "Option value not found: option='" + optionTitle + "', value='" + valueName + "'");
+    }
+
+    private void applyVariantDimensions(ProductVariant variant, ProductVariantRequest request) {
+        if (request.weight() != null || request.height() != null
+                || request.width() != null || request.length() != null) {
+            variant.applyDimensions(request.weight(), request.height(),
+                    request.width(), request.length());
+        }
+    }
+
+    private void applyVariantFlags(ProductVariant variant, ProductVariantRequest request) {
+        if (request.manageInventory() != null) {
+            variant.setManageInventory(request.manageInventory());
+        }
+        if (request.allowBackorder() != null) {
+            variant.setAllowBackorder(request.allowBackorder());
+        }
+    }
+
+    private void validateSkuUniqueness(String sku, UUID excludeId) {
+        if (sku == null) {
+            return;
+        }
+        boolean duplicate = excludeId != null
+                ? variantRepository.existsBySkuAndIdNot(sku, excludeId)
+                : variantRepository.existsBySku(sku);
+        if (duplicate) {
+            log.warn("Duplicate variant SKU attempted: {}", sku);
+            throw new BusinessRuleException(DUPLICATE_SKU_ERROR,
+                    "A variant with SKU '" + sku + "' already exists");
+        }
+    }
+
+    private void validateBarcodeUniqueness(String barcode, UUID excludeId) {
+        if (barcode == null) {
+            return;
+        }
+        boolean duplicate = excludeId != null
+                ? variantRepository.existsByBarcodeAndIdNot(barcode, excludeId)
+                : variantRepository.existsByBarcode(barcode);
+        if (duplicate) {
+            log.warn("Duplicate variant barcode attempted: {}", barcode);
+            throw new BusinessRuleException(DUPLICATE_BARCODE_ERROR,
+                    "A variant with barcode '" + barcode + "' already exists");
+        }
+    }
+
+    private ProductVariant findExistingVariantBySku(Product product, String sku) {
+        if (sku == null) {
+            return null;
+        }
+        for (ProductVariant variant : product.getVariants()) {
+            if (variant.getDeletedAt() == null && sku.equals(variant.getSku())) {
+                return variant;
+            }
+        }
+        return null;
     }
 }

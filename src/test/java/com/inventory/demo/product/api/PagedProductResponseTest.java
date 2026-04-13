@@ -21,7 +21,7 @@ class PagedProductResponseTest {
                 new BigDecimal("1.0"), new BigDecimal("2.0"),
                 new BigDecimal("3.0"), new BigDecimal("4.0"),
                 null, null, Instant.now(), Instant.now(),
-                List.of()
+                List.of(), List.of()
         );
     }
 
