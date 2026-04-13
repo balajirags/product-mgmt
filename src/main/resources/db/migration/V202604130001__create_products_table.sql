@@ -1,0 +1,28 @@
+CREATE TABLE products (
+    id              UUID            NOT NULL DEFAULT gen_random_uuid(),
+    title           TEXT            NOT NULL,
+    handle          TEXT,
+    status          TEXT            NOT NULL DEFAULT 'DRAFT',
+    description     TEXT,
+    subtitle        TEXT,
+    is_giftcard     BOOLEAN         NOT NULL DEFAULT false,
+    discountable    BOOLEAN         NOT NULL DEFAULT true,
+    thumbnail       TEXT,
+    weight          NUMERIC,
+    height          NUMERIC,
+    width           NUMERIC,
+    length          NUMERIC,
+    hs_code         TEXT,
+    mid_code        TEXT,
+    origin_country  TEXT,
+    material        TEXT,
+    external_id     TEXT,
+    metadata        JSONB,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    deleted_at      TIMESTAMPTZ,
+
+    CONSTRAINT pk_products PRIMARY KEY (id),
+    CONSTRAINT uq_products__handle UNIQUE (handle),
+    CONSTRAINT ck_products__status CHECK (status IN ('DRAFT', 'PUBLISHED', 'PROPOSED', 'REJECTED'))
+);

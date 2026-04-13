@@ -1,0 +1,149 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.3'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
+	id 'pmd'
+    id 'com.github.spotbugs' version '6.0.4'
+}
+
+ext {
+    set('springCloudVersion', "2024.0.1")
+}
+
+group = 'com.inventory'
+version = '0.0.1-SNAPSHOT'
+description = 'Demo project for Spring Boot'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+pmd {
+    toolVersion = '7.0.0'
+    ruleSets = []
+    ruleSetFiles = files("${rootDir}/config/pmd/pmd-rules.xml")
+    // Use suppressions file to keep legacy/wanted suppressions centrally managed
+    //suppressionsFile = file("${rootDir}/config/pmd/suppressions.xml")
+    ignoreFailures = false
+}
+
+spotbugs {
+    toolVersion = '4.8.3'
+    ignoreFailures = false
+}
+
+tasks.withType(Pmd) {
+    ignoreFailures = false
+    // ensure tasks also pick up suppressions if the plugin requires task-level wiring
+    //suppressionsFile = file("${rootDir}/config/pmd/suppressions.xml")
+}
+
+// Disable PMD and SpotBugs on test source sets
+tasks.named('pmdTest') { enabled = false }
+tasks.named('spotbugsTest') { enabled = false }
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
+    reports {
+        html.required = true
+        xml.required = false
+    }
+}
+
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	runtimeOnly 'org.postgresql:postgresql'
+	compileOnly 'org.projectlombok:lombok'
+	compileOnly 'com.github.spotbugs:spotbugs-annotations:4.8.6'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'com.github.spotbugs:spotbugs-annotations:4.8.6'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
+	testImplementation 'com.h2database:h2'
+	testImplementation 'org.springframework.cloud:spring-cloud-contract-wiremock'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+		 rule {
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.70
+            }
+        }
+    }
+}
+
+
+tasks.named('check') {
+    dependsOn  'pmdMain', 'spotbugsMain', 'jacocoTestCoverageVerification'
+}
+
+
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+	// exclude DTOs from coverage (they are simple data holders)
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect { file ->
+			fileTree(dir: file, exclude: ['com/inventory/dto/**', 'com/inventory/DemoApplication.class'])
+		}))
+	}
+}
+
+// Ensure coverage verification uses the same exclusions
+jacocoTestCoverageVerification {
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect { file ->
+			fileTree(dir: file, exclude: ['com/inventory/dto/**', 'com/inventory/DemoApplication.class'])
+		}))
+	}
+}
