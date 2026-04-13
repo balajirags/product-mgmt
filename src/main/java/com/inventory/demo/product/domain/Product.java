@@ -118,6 +118,68 @@ public class Product {
         return new Product(title, handle);
     }
 
+    /**
+     * Applies an explicit product status.
+     *
+     * @param status the desired product status
+     */
+    public void applyStatus(ProductStatus status) {
+        this.status = status;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Sets the product description text.
+     *
+     * @param description the product description
+     */
+    public void describeAs(String description) {
+        this.description = description;
+    }
+
+    /**
+     * Sets the product subtitle.
+     *
+     * @param subtitle the product subtitle
+     */
+    public void assignSubtitle(String subtitle) {
+        this.subtitle = subtitle;
+    }
+
+    /**
+     * Sets the physical dimensions and weight.
+     *
+     * @param weight the product weight
+     * @param height the product height
+     * @param width  the product width
+     * @param length the product length
+     */
+    public void applyDimensions(BigDecimal weight, BigDecimal height,
+                                BigDecimal width, BigDecimal length) {
+        this.weight = weight;
+        this.height = height;
+        this.width = width;
+        this.length = length;
+    }
+
+    /**
+     * Sets the serialised JSON metadata.
+     *
+     * @param metadata the JSON metadata string
+     */
+    public void attachMetadata(String metadata) {
+        this.metadata = metadata;
+    }
+
+    /**
+     * Sets the external system identifier.
+     *
+     * @param externalId the external ID
+     */
+    public void assignExternalId(String externalId) {
+        this.externalId = externalId;
+    }
+
     public UUID getId() {
         return id;
     }
