@@ -64,14 +64,18 @@ public record ProductResponse(
         Instant updatedAt,
 
         @JsonProperty("options")
-        List<ProductOptionResponse> options
+        List<ProductOptionResponse> options,
+
+        @JsonProperty("variants")
+        List<ProductVariantResponse> variants
 ) {
 
     /**
-     * Compact constructor that creates a defensive copy of the options list.
+     * Compact constructor that creates defensive copies of mutable list fields.
      */
     public ProductResponse {
         options = options != null ? List.copyOf(options) : List.of();
+        variants = variants != null ? List.copyOf(variants) : List.of();
     }
 
     /**
@@ -84,6 +88,11 @@ public record ProductResponse(
         List<ProductOptionResponse> optionResponses = product.getOptions().stream()
                 .filter(option -> option.getDeletedAt() == null)
                 .map(ProductOptionResponse::fromEntity)
+                .toList();
+
+        List<ProductVariantResponse> variantResponses = product.getVariants().stream()
+                .filter(variant -> variant.getDeletedAt() == null)
+                .map(ProductVariantResponse::fromEntity)
                 .toList();
 
         return new ProductResponse(
@@ -103,7 +112,8 @@ public record ProductResponse(
                 product.getExternalId(),
                 product.getCreatedAt(),
                 product.getUpdatedAt(),
-                optionResponses
+                optionResponses,
+                variantResponses
         );
     }
 }

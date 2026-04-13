@@ -43,7 +43,9 @@ class ProductControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        jdbcTemplate.execute("DELETE FROM variant_option_values");
         jdbcTemplate.execute("DELETE FROM product_option_values");
+        jdbcTemplate.execute("DELETE FROM product_variants");
         jdbcTemplate.execute("DELETE FROM product_options");
         jdbcTemplate.execute("DELETE FROM products");
     }
@@ -1016,6 +1018,387 @@ class ProductControllerIntegrationTest {
                     .andExpect(jsonPath("$.options[0].title").value("Size"))
                     .andExpect(jsonPath("$.options[0].values.length()").value(3))
                     .andExpect(jsonPath("$.options[0].values[0]").value("L"));
+        }
+    }
+
+    @Nested
+    class ProductVariantsCases {
+
+        @Test
+        void shouldCreateProductWithVariants() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "T-Shirt With Variants",
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": ["S", "M"]
+                            }
+                        ],
+                        "variants": [
+                            {
+                                "title": "Small",
+                                "sku": "TSHIRT-S",
+                                "option_values": {"Size": "S"}
+                            },
+                            {
+                                "title": "Medium",
+                                "sku": "TSHIRT-M",
+                                "option_values": {"Size": "M"}
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.variants").isArray())
+                    .andExpect(jsonPath("$.variants.length()").value(2))
+                    .andExpect(jsonPath("$.variants[0].title").value("Small"))
+                    .andExpect(jsonPath("$.variants[0].sku").value("TSHIRT-S"))
+                    .andExpect(jsonPath("$.variants[0].option_values.Size").value("S"))
+                    .andExpect(jsonPath("$.variants[1].title").value("Medium"))
+                    .andExpect(jsonPath("$.variants[1].sku").value("TSHIRT-M"));
+        }
+
+        @Test
+        void shouldCreateProductWithoutVariants() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Simple Product"
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.variants").isArray())
+                    .andExpect(jsonPath("$.variants.length()").value(0));
+        }
+
+        @Test
+        void shouldCreateVariantWithDimensionsAndFlags() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Heavy Product",
+                        "variants": [
+                            {
+                                "title": "Heavy Variant",
+                                "sku": "HEAVY-001",
+                                "barcode": "BC-HEAVY-001",
+                                "weight": 5.0,
+                                "height": 20.0,
+                                "width": 10.0,
+                                "length": 8.0,
+                                "manage_inventory": true,
+                                "allow_backorder": true
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.variants[0].weight").value(5.0))
+                    .andExpect(jsonPath("$.variants[0].height").value(20.0))
+                    .andExpect(jsonPath("$.variants[0].width").value(10.0))
+                    .andExpect(jsonPath("$.variants[0].length").value(8.0))
+                    .andExpect(jsonPath("$.variants[0].manage_inventory").value(true))
+                    .andExpect(jsonPath("$.variants[0].allow_backorder").value(true))
+                    .andExpect(jsonPath("$.variants[0].barcode").value("BC-HEAVY-001"));
+        }
+
+        @Test
+        void shouldAutoGenerateVariantTitle() throws Exception {
+            // given — no explicit title, should use option values
+            String requestJson = """
+                    {
+                        "title": "Auto Title Product",
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": ["S"]
+                            },
+                            {
+                                "title": "Color",
+                                "values": ["Red"]
+                            }
+                        ],
+                        "variants": [
+                            {
+                                "sku": "AUTO-SR",
+                                "option_values": {"Size": "S", "Color": "Red"}
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            MvcResult result = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.variants.length()").value(1))
+                    .andReturn();
+
+            // title should be auto-generated (option values joined)
+            String title = objectMapper.readTree(
+                    result.getResponse().getContentAsString())
+                    .get("variants").get(0).get("title").asText();
+            assertThat(title).contains("/");
+        }
+
+        @Test
+        void shouldUseDefaultTitleWhenNoOptionValues() throws Exception {
+            // given — no title, no option_values → "ProductTitle - Default"
+            String requestJson = """
+                    {
+                        "title": "Default Variant Product",
+                        "variants": [
+                            {
+                                "sku": "DEF-001"
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.variants[0].title").value("Default Variant Product - Default"));
+        }
+
+        @Test
+        void shouldRejectDuplicateSkuOnCreate() throws Exception {
+            // given — create first product with SKU
+            String firstRequest = """
+                    {
+                        "title": "First Product",
+                        "variants": [
+                            {
+                                "title": "V1",
+                                "sku": "UNIQUE-SKU"
+                            }
+                        ]
+                    }
+                    """;
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(firstRequest))
+                    .andExpect(status().isCreated());
+
+            // when — attempt to create another product with same SKU
+            String duplicateRequest = """
+                    {
+                        "title": "Second Product",
+                        "variants": [
+                            {
+                                "title": "V2",
+                                "sku": "UNIQUE-SKU"
+                            }
+                        ]
+                    }
+                    """;
+
+            // then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(duplicateRequest))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("DUPLICATE_SKU"));
+        }
+
+        @Test
+        void shouldAllowNullSku() throws Exception {
+            // given — variant with no SKU
+            String requestJson = """
+                    {
+                        "title": "No SKU Product",
+                        "variants": [
+                            {
+                                "title": "No SKU Variant"
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.variants[0].sku").doesNotExist());
+        }
+
+        @Test
+        void shouldReturnVariantsOnGetById() throws Exception {
+            // given — create product with variants
+            String createJson = """
+                    {
+                        "title": "Variants Fetch Test",
+                        "variants": [
+                            {
+                                "title": "Default",
+                                "sku": "FETCH-SKU-001"
+                            }
+                        ]
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.variants").isArray())
+                    .andExpect(jsonPath("$.variants.length()").value(1))
+                    .andExpect(jsonPath("$.variants[0].title").value("Default"))
+                    .andExpect(jsonPath("$.variants[0].sku").value("FETCH-SKU-001"))
+                    .andExpect(jsonPath("$.variants[0].created_at").exists())
+                    .andExpect(jsonPath("$.variants[0].updated_at").exists());
+        }
+
+        @Test
+        void shouldUpdateVariantsOnExistingProduct() throws Exception {
+            // given — create product with initial variant
+            String createJson = """
+                    {
+                        "title": "Update Variants Test",
+                        "variants": [
+                            {
+                                "title": "Keep Me",
+                                "sku": "SKU-KEEP"
+                            },
+                            {
+                                "title": "Remove Me",
+                                "sku": "SKU-REMOVE"
+                            }
+                        ]
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — update: keep SKU-KEEP, remove SKU-REMOVE, add new
+            String updateJson = """
+                    {
+                        "variants": [
+                            {
+                                "title": "Kept Variant Updated",
+                                "sku": "SKU-KEEP"
+                            },
+                            {
+                                "title": "New Variant",
+                                "sku": "SKU-NEW"
+                            }
+                        ]
+                    }
+                    """;
+
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.variants.length()").value(2));
+
+            // then — verify via GET that soft-deleted variant is excluded
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.variants.length()").value(2));
+        }
+
+        @Test
+        void shouldRejectVariantWithInvalidOptionReference() throws Exception {
+            // given — variant references non-existent option
+            String requestJson = """
+                    {
+                        "title": "Bad Option Ref Product",
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": ["S"]
+                            }
+                        ],
+                        "variants": [
+                            {
+                                "title": "Bad Variant",
+                                "option_values": {"Color": "Red"}
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("VARIANT_OPTION_NOT_FOUND"));
+        }
+
+        @Test
+        void shouldRejectDuplicateBarcodeOnCreate() throws Exception {
+            // given — create first product with barcode
+            String firstRequest = """
+                    {
+                        "title": "First Product",
+                        "variants": [
+                            {
+                                "title": "V1",
+                                "barcode": "UNIQUE-BC"
+                            }
+                        ]
+                    }
+                    """;
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(firstRequest))
+                    .andExpect(status().isCreated());
+
+            // when — attempt to create another with same barcode
+            String duplicateRequest = """
+                    {
+                        "title": "Second Product",
+                        "variants": [
+                            {
+                                "title": "V2",
+                                "barcode": "UNIQUE-BC"
+                            }
+                        ]
+                    }
+                    """;
+
+            // then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(duplicateRequest))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("DUPLICATE_BARCODE"));
         }
     }
 }

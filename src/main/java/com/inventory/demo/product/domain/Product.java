@@ -103,6 +103,10 @@ public class Product {
     @SQLRestriction("deleted_at IS NULL")
     private final List<ProductOption> options = new ArrayList<>();
 
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @SQLRestriction("deleted_at IS NULL")
+    private final List<ProductVariant> variants = new ArrayList<>();
+
     protected Product() {
         // JPA requires a no-arg constructor
     }
@@ -333,5 +337,35 @@ public class Product {
      */
     List<ProductOption> getOptionsMutable() {
         return options;
+    }
+
+    /**
+     * Adds a new variant to this product.
+     *
+     * @param title the variant title (e.g., "S / Red")
+     * @return the created ProductVariant
+     */
+    public ProductVariant addVariant(String title) {
+        ProductVariant variant = ProductVariant.create(this, title);
+        this.variants.add(variant);
+        return variant;
+    }
+
+    /**
+     * Returns an unmodifiable view of the product variants.
+     *
+     * @return the product variants
+     */
+    public List<ProductVariant> getVariants() {
+        return Collections.unmodifiableList(variants);
+    }
+
+    /**
+     * Returns the mutable variants list for internal modification.
+     *
+     * @return the mutable variants list
+     */
+    List<ProductVariant> getVariantsMutable() {
+        return variants;
     }
 }

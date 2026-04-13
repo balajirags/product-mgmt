@@ -51,13 +51,18 @@ public record CreateProductRequest(
 
         @Valid
         @JsonProperty("options")
-        List<ProductOptionRequest> options
+        List<ProductOptionRequest> options,
+
+        @Valid
+        @JsonProperty("variants")
+        List<ProductVariantRequest> variants
 ) {
 
     /**
-     * Compact constructor that creates a defensive copy of the options list.
+     * Compact constructor that creates defensive copies of mutable list fields.
      */
     public CreateProductRequest {
         options = options != null ? List.copyOf(options) : options;
+        variants = variants != null ? List.copyOf(variants) : variants;
     }
 }
