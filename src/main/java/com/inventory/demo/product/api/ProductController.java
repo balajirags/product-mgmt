@@ -6,10 +6,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 /**
  * REST controller for product management endpoints.
@@ -37,5 +41,18 @@ public class ProductController {
         log.info("POST /api/v1/products - Creating product: title={}", request.title());
         ProductResponse response = productService.createProduct(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Retrieves a product by its unique identifier.
+     *
+     * @param id the product UUID
+     * @return the product with HTTP 200
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductResponse> getProductById(@PathVariable UUID id) {
+        log.info("GET /api/v1/products/{} - Retrieving product", id);
+        ProductResponse response = productService.getProductById(id);
+        return ResponseEntity.ok(response);
     }
 }

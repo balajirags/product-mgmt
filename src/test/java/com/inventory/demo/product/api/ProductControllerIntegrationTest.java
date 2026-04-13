@@ -11,8 +11,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -256,6 +260,77 @@ class ProductControllerIntegrationTest {
                             .content(firstRequest))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.error_code").value("DUPLICATE_HANDLE"));
+        }
+    }
+
+    @Nested
+    class GetProductByIdCases {
+
+        @Test
+        void shouldReturnProduct_whenExists() throws Exception {
+            // given — create a product first
+            String createJson = """
+                    {
+                        "title": "Retrievable Product",
+                        "description": "A product to retrieve",
+                        "subtitle": "Fetch me",
+                        "status": "PUBLISHED",
+                        "weight": 2.5,
+                        "height": 10.0,
+                        "width": 5.0,
+                        "length": 3.0,
+                        "metadata": "{\\"color\\":\\"blue\\"}",
+                        "external_id": "EXT-GET-001"
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(productId))
+                    .andExpect(jsonPath("$.title").value("Retrievable Product"))
+                    .andExpect(jsonPath("$.handle").value("retrievable-product"))
+                    .andExpect(jsonPath("$.status").value("PUBLISHED"))
+                    .andExpect(jsonPath("$.description").value("A product to retrieve"))
+                    .andExpect(jsonPath("$.subtitle").value("Fetch me"))
+                    .andExpect(jsonPath("$.is_giftcard").value(false))
+                    .andExpect(jsonPath("$.discountable").value(true))
+                    .andExpect(jsonPath("$.weight").value(2.5))
+                    .andExpect(jsonPath("$.height").value(10.0))
+                    .andExpect(jsonPath("$.width").value(5.0))
+                    .andExpect(jsonPath("$.length").value(3.0))
+                    .andExpect(jsonPath("$.metadata").value("{\"color\":\"blue\"}"))
+                    .andExpect(jsonPath("$.external_id").value("EXT-GET-001"))
+                    .andExpect(jsonPath("$.created_at").exists())
+                    .andExpect(jsonPath("$.updated_at").exists());
+        }
+
+        @Test
+        void shouldReturnNotFound_whenProductDoesNotExist() throws Exception {
+            // given
+            UUID unknownId = UUID.randomUUID();
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", unknownId))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error_code").value("RESOURCE_NOT_FOUND"))
+                    .andExpect(jsonPath("$.detail").value("Product not found with identifier: " + unknownId));
+        }
+
+        @Test
+        void shouldReturnBadRequest_whenInvalidUuidFormat() throws Exception {
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/not-a-uuid"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error_code").value("INVALID_PARAMETER"));
         }
     }
 }
