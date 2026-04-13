@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -16,9 +17,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -307,6 +311,119 @@ class ProductControllerTest {
             mockMvc.perform(get(PRODUCTS_URL + "/not-a-uuid"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error_code").value("INVALID_PARAMETER"));
+        }
+    }
+
+    @Nested
+    class ListProductsSuccessCases {
+
+        @Test
+        void shouldReturnOk_whenListingWithNoParams() throws Exception {
+            // given
+            PagedProductResponse pagedResponse = new PagedProductResponse(
+                    List.of(sampleResponse()), 0, 20, 1, 1);
+            when(productService.listProducts(isNull(), any(Pageable.class)))
+                    .thenReturn(pagedResponse);
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content").isArray())
+                    .andExpect(jsonPath("$.content.length()").value(1))
+                    .andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(20))
+                    .andExpect(jsonPath("$.total_elements").value(1))
+                    .andExpect(jsonPath("$.total_pages").value(1));
+        }
+
+        @Test
+        void shouldReturnOk_withPaginationParams() throws Exception {
+            // given
+            PagedProductResponse pagedResponse = new PagedProductResponse(
+                    List.of(sampleResponse()), 1, 10, 25, 3);
+            when(productService.listProducts(isNull(), any(Pageable.class)))
+                    .thenReturn(pagedResponse);
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("page", "1")
+                            .param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.page").value(1))
+                    .andExpect(jsonPath("$.size").value(10))
+                    .andExpect(jsonPath("$.total_elements").value(25))
+                    .andExpect(jsonPath("$.total_pages").value(3));
+        }
+
+        @Test
+        void shouldReturnOk_withStatusFilter() throws Exception {
+            // given
+            PagedProductResponse pagedResponse = new PagedProductResponse(
+                    List.of(sampleResponse()), 0, 20, 1, 1);
+            when(productService.listProducts(eq("PUBLISHED"), any(Pageable.class)))
+                    .thenReturn(pagedResponse);
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("status", "PUBLISHED"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content").isArray());
+
+            verify(productService).listProducts(eq("PUBLISHED"), any(Pageable.class));
+        }
+
+        @Test
+        void shouldReturnOk_withEmptyContent() throws Exception {
+            // given
+            PagedProductResponse pagedResponse = new PagedProductResponse(
+                    List.of(), 0, 20, 0, 0);
+            when(productService.listProducts(isNull(), any(Pageable.class)))
+                    .thenReturn(pagedResponse);
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content").isArray())
+                    .andExpect(jsonPath("$.content.length()").value(0))
+                    .andExpect(jsonPath("$.total_elements").value(0))
+                    .andExpect(jsonPath("$.total_pages").value(0));
+        }
+
+        @Test
+        void shouldReturnSnakeCaseResponseFields_inPagedResponse() throws Exception {
+            // given
+            PagedProductResponse pagedResponse = new PagedProductResponse(
+                    List.of(sampleResponse()), 0, 20, 1, 1);
+            when(productService.listProducts(isNull(), any(Pageable.class)))
+                    .thenReturn(pagedResponse);
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.total_elements").exists())
+                    .andExpect(jsonPath("$.total_pages").exists())
+                    .andExpect(jsonPath("$.content[0].is_giftcard").exists())
+                    .andExpect(jsonPath("$.content[0].external_id").exists())
+                    .andExpect(jsonPath("$.content[0].created_at").exists())
+                    .andExpect(jsonPath("$.content[0].updated_at").exists());
+        }
+    }
+
+    @Nested
+    class ListProductsFailureCases {
+
+        @Test
+        void shouldReturnConflict_whenInvalidStatusFilter() throws Exception {
+            // given
+            when(productService.listProducts(eq("INVALID"), any(Pageable.class)))
+                    .thenThrow(new BusinessRuleException("INVALID_STATUS",
+                            "Invalid product status: INVALID. Valid statuses are: DRAFT, PUBLISHED, PROPOSED, REJECTED"));
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("status", "INVALID"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("INVALID_STATUS"));
         }
     }
 }
