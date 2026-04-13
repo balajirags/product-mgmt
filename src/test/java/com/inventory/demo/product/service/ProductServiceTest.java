@@ -4,9 +4,11 @@ import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.PagedProductResponse;
+import com.inventory.demo.product.api.ProductOptionRequest;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.api.UpdateProductRequest;
 import com.inventory.demo.product.domain.Product;
+import com.inventory.demo.product.domain.ProductOption;
 import com.inventory.demo.product.repository.ProductRepository;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -46,17 +48,17 @@ class ProductServiceTest {
 
     private static CreateProductRequest minimalRequest(String title) {
         return new CreateProductRequest(title, null, null, null, null,
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest requestWithHandle(String title, String handle) {
         return new CreateProductRequest(title, handle, null, null, null,
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest requestWithStatus(String title, String status) {
         return new CreateProductRequest(title, null, status, null, null,
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest fullRequest() {
@@ -71,7 +73,8 @@ class ProductServiceTest {
                 new BigDecimal("5.0"),
                 new BigDecimal("3.0"),
                 "{\"color\":\"red\"}",
-                "EXT-001"
+                "EXT-001",
+                null
         );
     }
 
@@ -463,7 +466,7 @@ class ProductServiceTest {
                                                        BigDecimal width, BigDecimal length,
                                                        String metadata, String externalId) {
         return new UpdateProductRequest(title, handle, status, description, subtitle,
-                weight, height, width, length, metadata, externalId);
+                weight, height, width, length, metadata, externalId, null);
     }
 
     private static UpdateProductRequest titleOnlyUpdate(String title) {
@@ -748,6 +751,196 @@ class ProductServiceTest {
             assertThatThrownBy(() -> productService.updateProduct(productId, request))
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessageContaining("title must not be blank");
+
+            verify(productRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    class CreateProductWithOptionsCases {
+
+        @Test
+        void shouldCreateProductWithOptions() {
+            // given
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Size", List.of("S", "M", "L")),
+                    new ProductOptionRequest("Color", List.of("Red", "Blue"))
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, options);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.options()).hasSize(2);
+            assertThat(response.options().get(0).title()).isEqualTo("Size");
+            assertThat(response.options().get(0).values()).containsExactly("S", "M", "L");
+            assertThat(response.options().get(1).title()).isEqualTo("Color");
+            assertThat(response.options().get(1).values()).containsExactly("Red", "Blue");
+        }
+
+        @Test
+        void shouldCreateProductWithNoOptions() {
+            // given
+            CreateProductRequest request = minimalRequest("Simple Product");
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.options()).isEmpty();
+        }
+
+        @Test
+        void shouldRejectDuplicateOptionTitles() {
+            // given
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Size", List.of("S", "M")),
+                    new ProductOptionRequest("Size", List.of("L", "XL"))
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "T-Shirt", null, null, null, null,
+                    null, null, null, null, null, null, options);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+
+            // when / then
+            assertThatThrownBy(() -> productService.createProduct(request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Duplicate option title");
+
+            verify(productRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    class UpdateProductOptionsCases {
+
+        @Test
+        void shouldAddOptionsToExistingProduct() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Size", List.of("S", "M", "L"))
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, options);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.options()).hasSize(1);
+            assertThat(response.options().get(0).title()).isEqualTo("Size");
+            assertThat(response.options().get(0).values()).containsExactly("S", "M", "L");
+        }
+
+        @Test
+        void shouldUpdateExistingOptionValues() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            ProductOption sizeOption = product.addOption("Size");
+            sizeOption.addValue("S");
+            sizeOption.addValue("M");
+
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Size", List.of("L", "XL", "XXL"))
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, options);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.options()).hasSize(1);
+            assertThat(response.options().get(0).title()).isEqualTo("Size");
+            assertThat(response.options().get(0).values()).containsExactly("L", "XL", "XXL");
+        }
+
+        @Test
+        void shouldSoftDeleteRemovedOptions() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            product.addOption("Size").addValue("S");
+            product.addOption("Color").addValue("Red");
+
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // Update with only Size — Color should be soft-deleted
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Size", List.of("S", "M"))
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, options);
+
+            // when
+            productService.updateProduct(productId, request);
+
+            // then — Color option should be soft-deleted
+            assertThat(product.getOptions())
+                    .filteredOn(o -> "Color".equals(o.getTitle()))
+                    .allSatisfy(o -> assertThat(o.getDeletedAt()).isNotNull());
+        }
+
+        @Test
+        void shouldNotModifyOptionsWhenOptionsFieldIsNull() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            product.addOption("Size").addValue("S");
+
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null);
+
+            // when
+            productService.updateProduct(productId, request);
+
+            // then — options should remain untouched, no save
+            assertThat(product.getOptions()).hasSize(1);
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectDuplicateOptionTitlesOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("T-Shirt", "t-shirt");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            List<ProductOptionRequest> options = List.of(
+                    new ProductOptionRequest("Color", List.of("Red")),
+                    new ProductOptionRequest("Color", List.of("Blue"))
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, options);
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(productId, request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Duplicate option title");
 
             verify(productRepository, never()).save(any());
         }

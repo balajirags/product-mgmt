@@ -1,13 +1,18 @@
 package com.inventory.demo.product.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import jakarta.validation.Valid;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Request DTO for updating an existing product.
  * All fields are optional — only provided (non-null) fields are applied (partial update).
  */
+@SuppressFBWarnings(value = {"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "NP_LOAD_OF_KNOWN_NULL_VALUE"}, justification = "Record DTO — List.copyOf in compact constructor ensures immutability; null-guard is intentional")
+@SuppressWarnings("PMD.UnusedAssignment") // PMD false positive with record compact constructor
 public record UpdateProductRequest(
 
         @JsonProperty("title")
@@ -41,6 +46,17 @@ public record UpdateProductRequest(
         String metadata,
 
         @JsonProperty("external_id")
-        String externalId
+        String externalId,
+
+        @Valid
+        @JsonProperty("options")
+        List<ProductOptionRequest> options
 ) {
+
+    /**
+     * Compact constructor that creates a defensive copy of the options list.
+     */
+    public UpdateProductRequest {
+        options = options != null ? List.copyOf(options) : options;
+    }
 }

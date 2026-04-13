@@ -4,9 +4,11 @@ import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.PagedProductResponse;
 import com.inventory.demo.product.api.CreateProductRequest;
+import com.inventory.demo.product.api.ProductOptionRequest;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.api.UpdateProductRequest;
 import com.inventory.demo.product.domain.Product;
+import com.inventory.demo.product.domain.ProductOption;
 import com.inventory.demo.product.domain.ProductStatus;
 import com.inventory.demo.product.repository.ProductRepository;
 import com.inventory.demo.product.repository.ProductSpecifications;
@@ -20,14 +22,17 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Service for managing product creation and related business operations.
  */
 @Service
-@SuppressWarnings("PMD.GodClass") // Service handles full product CRUD lifecycle
+@SuppressWarnings({"PMD.GodClass", "PMD.CyclomaticComplexity"}) // Service handles full product CRUD lifecycle with many small methods
 public class ProductService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
@@ -35,6 +40,7 @@ public class ProductService {
     private static final String DUPLICATE_HANDLE_ERROR = "DUPLICATE_HANDLE";
     private static final String INVALID_STATUS_ERROR = "INVALID_STATUS";
     private static final String BLANK_TITLE_ERROR = "BLANK_TITLE";
+    private static final String DUPLICATE_OPTION_TITLE_ERROR = "DUPLICATE_OPTION_TITLE";
     private static final String SLUG_SEPARATOR = "-";
     private static final String NON_ALPHANUMERIC_PATTERN = "[^a-z0-9\\-]";
     private static final String CONSECUTIVE_HYPHENS_PATTERN = "-{2,}";
@@ -66,6 +72,7 @@ public class ProductService {
 
         applyOptionalStatus(product, request.status());
         applyOptionalFields(product, request);
+        applyOptions(product, request.options());
 
         Product saved = productRepository.save(product);
         log.info("Product created successfully: id={}, handle={}, status={}",
@@ -131,8 +138,9 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
         boolean modified = applyUpdates(product, id, request);
+        boolean optionsModified = applyOptionsUpdate(product, request.options());
 
-        if (modified) {
+        if (modified || optionsModified) {
             product.markUpdated();
             Product saved = productRepository.save(product);
             log.info("Product updated successfully: id={}, handle={}", saved.getId(), saved.getHandle());
@@ -343,6 +351,81 @@ public class ProductService {
             throw new BusinessRuleException(INVALID_STATUS_ERROR,
                     "Invalid product status: " + status
                             + ". Valid statuses are: DRAFT, PUBLISHED, PROPOSED, REJECTED", ex);
+        }
+    }
+
+    private void applyOptions(Product product, List<ProductOptionRequest> optionRequests) {
+        if (optionRequests == null || optionRequests.isEmpty()) {
+            return;
+        }
+        validateNoDuplicateOptionTitles(optionRequests);
+
+        for (ProductOptionRequest optionReq : optionRequests) {
+            ProductOption option = product.addOption(optionReq.title());
+            for (String value : optionReq.values()) {
+                option.addValue(value);
+            }
+        }
+        log.info("Applied {} options to product", optionRequests.size());
+    }
+
+    private boolean applyOptionsUpdate(Product product, List<ProductOptionRequest> optionRequests) {
+        if (optionRequests == null) {
+            return false;
+        }
+        validateNoDuplicateOptionTitles(optionRequests);
+
+        softDeleteExistingOptions(product, optionRequests);
+        mergeOptions(product, optionRequests);
+
+        log.info("Updated options for product: id={}, optionCount={}", product.getId(), optionRequests.size());
+        return true;
+    }
+
+    private void softDeleteExistingOptions(Product product, List<ProductOptionRequest> optionRequests) {
+        Set<String> requestedTitles = new HashSet<>();
+        for (ProductOptionRequest req : optionRequests) {
+            requestedTitles.add(req.title());
+        }
+
+        for (ProductOption existing : product.getOptions()) {
+            if (!requestedTitles.contains(existing.getTitle())) {
+                existing.softDelete();
+            }
+        }
+    }
+
+    private void mergeOptions(Product product, List<ProductOptionRequest> optionRequests) {
+        for (ProductOptionRequest optionReq : optionRequests) {
+            ProductOption existing = findExistingOption(product, optionReq.title());
+            if (existing != null) {
+                existing.replaceValues(optionReq.values());
+            } else {
+                ProductOption newOption = product.addOption(optionReq.title());
+                for (String value : optionReq.values()) {
+                    newOption.addValue(value);
+                }
+            }
+        }
+    }
+
+    private ProductOption findExistingOption(Product product, String title) {
+        for (ProductOption option : product.getOptions()) {
+            if (option.getTitle().equals(title) && option.getDeletedAt() == null) {
+                return option;
+            }
+        }
+        return null;
+    }
+
+    private void validateNoDuplicateOptionTitles(List<ProductOptionRequest> optionRequests) {
+        Set<String> seen = new HashSet<>();
+        for (ProductOptionRequest req : optionRequests) {
+            if (!seen.add(req.title())) {
+                log.warn("Duplicate option title in request: {}", req.title());
+                throw new BusinessRuleException(DUPLICATE_OPTION_TITLE_ERROR,
+                        "Duplicate option title: '" + req.title() + "'");
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 class ProductTest {
@@ -174,6 +175,58 @@ class ProductTest {
 
             // then
             assertThat(product.getUpdatedAt()).isAfterOrEqualTo(before);
+        }
+    }
+
+    @Nested
+    class OptionManagementTests {
+
+        @Test
+        void shouldAddOptionToProduct() {
+            // given
+            Product product = Product.create("T-Shirt", "t-shirt");
+
+            // when
+            ProductOption option = product.addOption("Size");
+
+            // then
+            assertThat(option.getTitle()).isEqualTo("Size");
+            assertThat(option.getProduct()).isSameAs(product);
+            assertThat(product.getOptions()).hasSize(1);
+        }
+
+        @Test
+        void shouldAddMultipleOptions() {
+            // given
+            Product product = Product.create("T-Shirt", "t-shirt");
+
+            // when
+            product.addOption("Size");
+            product.addOption("Color");
+            product.addOption("Material");
+
+            // then
+            assertThat(product.getOptions()).hasSize(3);
+        }
+
+        @Test
+        void shouldReturnEmptyOptionsListByDefault() {
+            // when
+            Product product = Product.create("Simple", "simple");
+
+            // then
+            assertThat(product.getOptions()).isEmpty();
+        }
+
+        @Test
+        void shouldReturnUnmodifiableOptionsList() {
+            // given
+            Product product = Product.create("T-Shirt", "t-shirt");
+            product.addOption("Size");
+
+            // when / then
+            assertThatThrownBy(() -> product.getOptions().clear())
+                    .isInstanceOf(UnsupportedOperationException.class);
         }
     }
 }

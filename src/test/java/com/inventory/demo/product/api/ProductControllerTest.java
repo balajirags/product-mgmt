@@ -63,7 +63,8 @@ class ProductControllerTest {
                 "{\"key\":\"value\"}",
                 "EXT-001",
                 Instant.now(),
-                Instant.now()
+                Instant.now(),
+                List.of()
         );
     }
 
@@ -438,7 +439,7 @@ class ProductControllerTest {
                     productId, "Updated Title", "test-product", "DRAFT",
                     null, null, false, true,
                     null, null, null, null, null, null,
-                    Instant.now(), Instant.now());
+                    Instant.now(), Instant.now(), List.of());
             when(productService.updateProduct(eq(productId), any(UpdateProductRequest.class)))
                     .thenReturn(updatedResponse);
 

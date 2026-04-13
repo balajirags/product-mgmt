@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -37,9 +38,14 @@ class ProductControllerIntegrationTest {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @BeforeEach
     void setUp() {
-        productRepository.deleteAll();
+        jdbcTemplate.execute("DELETE FROM product_option_values");
+        jdbcTemplate.execute("DELETE FROM product_options");
+        jdbcTemplate.execute("DELETE FROM products");
     }
 
     @Nested
@@ -796,6 +802,220 @@ class ProductControllerIntegrationTest {
                             .content("{\"title\": \"Test\"}"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error_code").value("INVALID_PARAMETER"));
+        }
+    }
+
+    @Nested
+    class ProductOptionsCases {
+
+        @Test
+        void shouldCreateProductWithOptions() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "T-Shirt With Options",
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": ["S", "M", "L"]
+                            },
+                            {
+                                "title": "Color",
+                                "values": ["Red", "Blue"]
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.options").isArray())
+                    .andExpect(jsonPath("$.options.length()").value(2))
+                    .andExpect(jsonPath("$.options[0].title").value("Size"))
+                    .andExpect(jsonPath("$.options[0].values.length()").value(3))
+                    .andExpect(jsonPath("$.options[0].values[0]").value("S"))
+                    .andExpect(jsonPath("$.options[1].title").value("Color"))
+                    .andExpect(jsonPath("$.options[1].values.length()").value(2));
+        }
+
+        @Test
+        void shouldCreateProductWithoutOptions() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Simple Product"
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.options").isArray())
+                    .andExpect(jsonPath("$.options.length()").value(0));
+        }
+
+        @Test
+        void shouldRejectDuplicateOptionTitles() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Duplicate Options Product",
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": ["S", "M"]
+                            },
+                            {
+                                "title": "Size",
+                                "values": ["L", "XL"]
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("DUPLICATE_OPTION_TITLE"));
+        }
+
+        @Test
+        void shouldRejectOptionWithBlankTitle() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Bad Option Product",
+                        "options": [
+                            {
+                                "title": "",
+                                "values": ["S", "M"]
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void shouldRejectOptionWithEmptyValues() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Empty Values Product",
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": []
+                            }
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void shouldReturnOptionsOnGetById() throws Exception {
+            // given — create product with options
+            String createJson = """
+                    {
+                        "title": "Get Options Test",
+                        "options": [
+                            {
+                                "title": "Material",
+                                "values": ["Cotton", "Polyester"]
+                            }
+                        ]
+                    }
+                    """;
+
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.options").isArray())
+                    .andExpect(jsonPath("$.options.length()").value(1))
+                    .andExpect(jsonPath("$.options[0].title").value("Material"))
+                    .andExpect(jsonPath("$.options[0].values[0]").value("Cotton"))
+                    .andExpect(jsonPath("$.options[0].values[1]").value("Polyester"));
+        }
+
+        @Test
+        void shouldUpdateProductOptions() throws Exception {
+            // given — create product with initial options
+            String createJson = """
+                    {
+                        "title": "Update Options Test",
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": ["S", "M"]
+                            },
+                            {
+                                "title": "Color",
+                                "values": ["Red"]
+                            }
+                        ]
+                    }
+                    """;
+
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — update: change Size values, remove Color, add Material
+            String updateJson = """
+                    {
+                        "options": [
+                            {
+                                "title": "Size",
+                                "values": ["L", "XL", "XXL"]
+                            },
+                            {
+                                "title": "Material",
+                                "values": ["Cotton", "Silk"]
+                            }
+                        ]
+                    }
+                    """;
+
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.options.length()").value(2))
+                    .andExpect(jsonPath("$.options[0].title").value("Size"))
+                    .andExpect(jsonPath("$.options[0].values.length()").value(3))
+                    .andExpect(jsonPath("$.options[0].values[0]").value("L"));
         }
     }
 }
