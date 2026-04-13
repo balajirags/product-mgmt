@@ -333,4 +333,179 @@ class ProductControllerIntegrationTest {
                     .andExpect(jsonPath("$.error_code").value("INVALID_PARAMETER"));
         }
     }
+
+    @Nested
+    class ListProductsCases {
+
+        @Test
+        void shouldReturnEmptyList_whenNoProductsExist() throws Exception {
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content").isArray())
+                    .andExpect(jsonPath("$.content.length()").value(0))
+                    .andExpect(jsonPath("$.total_elements").value(0))
+                    .andExpect(jsonPath("$.total_pages").value(0))
+                    .andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(20));
+        }
+
+        @Test
+        void shouldReturnAllProducts_whenNoFilter() throws Exception {
+            // given
+            createProduct("Product A");
+            createProduct("Product B");
+            createProduct("Product C");
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(3))
+                    .andExpect(jsonPath("$.total_elements").value(3))
+                    .andExpect(jsonPath("$.total_pages").value(1));
+        }
+
+        @Test
+        void shouldPaginate_whenPageAndSizeProvided() throws Exception {
+            // given
+            for (int i = 0; i < 5; i++) {
+                createProduct("Paged Product " + i);
+            }
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("page", "0")
+                            .param("size", "2"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(2))
+                    .andExpect(jsonPath("$.total_elements").value(5))
+                    .andExpect(jsonPath("$.total_pages").value(3))
+                    .andExpect(jsonPath("$.page").value(0))
+                    .andExpect(jsonPath("$.size").value(2));
+        }
+
+        @Test
+        void shouldReturnSecondPage() throws Exception {
+            // given
+            for (int i = 0; i < 5; i++) {
+                createProduct("Page Product " + i);
+            }
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("page", "1")
+                            .param("size", "2"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(2))
+                    .andExpect(jsonPath("$.page").value(1));
+        }
+
+        @Test
+        void shouldFilterByStatus() throws Exception {
+            // given
+            createProduct("Draft Product");
+            createProductWithStatus("Published Product", "PUBLISHED");
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("status", "PUBLISHED"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(1))
+                    .andExpect(jsonPath("$.content[0].status").value("PUBLISHED"))
+                    .andExpect(jsonPath("$.total_elements").value(1));
+        }
+
+        @Test
+        void shouldFilterByStatusCaseInsensitive() throws Exception {
+            // given
+            createProductWithStatus("Published Product", "PUBLISHED");
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("status", "published"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(1))
+                    .andExpect(jsonPath("$.content[0].status").value("PUBLISHED"));
+        }
+
+        @Test
+        void shouldReturnConflict_whenInvalidStatusFilter() throws Exception {
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("status", "INVALID"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error_code").value("INVALID_STATUS"));
+        }
+
+        @Test
+        void shouldSortByCreatedAtDescByDefault() throws Exception {
+            // given
+            createProduct("First Product");
+            createProduct("Second Product");
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(2))
+                    .andExpect(jsonPath("$.content[0].title").value("Second Product"))
+                    .andExpect(jsonPath("$.content[1].title").value("First Product"));
+        }
+
+        @Test
+        void shouldSortByExplicitParam() throws Exception {
+            // given
+            createProduct("Banana Product");
+            createProduct("Apple Product");
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL)
+                            .param("sort", "title,asc"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content[0].title").value("Apple Product"))
+                    .andExpect(jsonPath("$.content[1].title").value("Banana Product"));
+        }
+
+        @Test
+        void shouldReturnPageResponseStructure() throws Exception {
+            // given
+            createProduct("Structure Test");
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content").isArray())
+                    .andExpect(jsonPath("$.page").isNumber())
+                    .andExpect(jsonPath("$.size").isNumber())
+                    .andExpect(jsonPath("$.total_elements").isNumber())
+                    .andExpect(jsonPath("$.total_pages").isNumber())
+                    .andExpect(jsonPath("$.content[0].is_giftcard").exists())
+                    .andExpect(jsonPath("$.content[0].created_at").exists())
+                    .andExpect(jsonPath("$.content[0].updated_at").exists());
+        }
+    }
+
+    private void createProduct(String title) throws Exception {
+        String requestJson = String.format("""
+                {
+                    "title": "%s"
+                }
+                """, title);
+        mockMvc.perform(post(PRODUCTS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated());
+    }
+
+    private void createProductWithStatus(String title, String status) throws Exception {
+        String requestJson = String.format("""
+                {
+                    "title": "%s",
+                    "status": "%s"
+                }
+                """, title, status);
+        mockMvc.perform(post(PRODUCTS_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated());
+    }
 }

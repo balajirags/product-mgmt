@@ -2,13 +2,20 @@ package com.inventory.demo.product.service;
 
 import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.ResourceNotFoundException;
+import com.inventory.demo.product.api.PagedProductResponse;
 import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.domain.Product;
 import com.inventory.demo.product.domain.ProductStatus;
 import com.inventory.demo.product.repository.ProductRepository;
+import com.inventory.demo.product.repository.ProductSpecifications;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +35,9 @@ public class ProductService {
     private static final String SLUG_SEPARATOR = "-";
     private static final String NON_ALPHANUMERIC_PATTERN = "[^a-z0-9\\-]";
     private static final String CONSECUTIVE_HYPHENS_PATTERN = "-{2,}";
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final String DEFAULT_SORT_FIELD = "createdAt";
 
     private final ProductRepository productRepository;
 
@@ -76,6 +86,28 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
         return ProductResponse.fromEntity(product);
+    }
+
+    /**
+     * Lists products with optional status filtering and pagination.
+     *
+     * @param status   optional status filter (e.g., DRAFT, PUBLISHED)
+     * @param pageable pagination and sort parameters
+     * @return a paginated response of products
+     * @throws BusinessRuleException if the status filter value is invalid
+     */
+    @Transactional(readOnly = true)
+    public PagedProductResponse listProducts(String status, Pageable pageable) {
+        log.info("Listing products: status={}, page={}, size={}", status, pageable.getPageNumber(), pageable.getPageSize());
+
+        Pageable cappedPageable = capPageSize(pageable);
+        Specification<Product> spec = buildSpecification(status);
+
+        Page<ProductResponse> productPage = productRepository.findAll(spec, cappedPageable)
+                .map(ProductResponse::fromEntity);
+
+        log.info("Products listed: totalElements={}, totalPages={}", productPage.getTotalElements(), productPage.getTotalPages());
+        return PagedProductResponse.fromPage(productPage);
     }
 
     /**
@@ -148,5 +180,28 @@ public class ProductService {
     private boolean hasDimensions(CreateProductRequest request) {
         return request.weight() != null || request.height() != null
                 || request.width() != null || request.length() != null;
+    }
+
+    private Pageable capPageSize(Pageable pageable) {
+        int size = Math.min(pageable.getPageSize(), MAX_PAGE_SIZE);
+        Sort sort = pageable.getSort().isSorted()
+                ? pageable.getSort()
+                : Sort.by(Sort.Direction.DESC, DEFAULT_SORT_FIELD);
+        return PageRequest.of(pageable.getPageNumber(), size, sort);
+    }
+
+    private Specification<Product> buildSpecification(String status) {
+        if (status == null || status.isBlank()) {
+            return Specification.where(null);
+        }
+        try {
+            ProductStatus productStatus = ProductStatus.valueOf(status.toUpperCase(Locale.ROOT));
+            return Specification.where(ProductSpecifications.withStatus(productStatus));
+        } catch (IllegalArgumentException ex) {
+            log.warn("Invalid product status filter: {}", status);
+            throw new BusinessRuleException(INVALID_STATUS_ERROR,
+                    "Invalid product status: " + status
+                            + ". Valid statuses are: DRAFT, PUBLISHED, PROPOSED, REJECTED", ex);
+        }
     }
 }

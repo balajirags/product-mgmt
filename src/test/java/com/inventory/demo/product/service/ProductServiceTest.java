@@ -3,6 +3,7 @@ package com.inventory.demo.product.service;
 import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.CreateProductRequest;
+import com.inventory.demo.product.api.PagedProductResponse;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.domain.Product;
 import com.inventory.demo.product.repository.ProductRepository;
@@ -13,8 +14,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -294,6 +302,157 @@ class ProductServiceTest {
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("Product")
                     .hasMessageContaining(unknownId.toString());
+        }
+    }
+
+    @Nested
+    class ListProductsCases {
+
+        @Test
+        void shouldReturnPagedProducts_whenNoFilter() {
+            // given
+            Product product = Product.create("Test Product", "test-product");
+            Page<Product> page = new PageImpl<>(List.of(product), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")), 1);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+
+            // when
+            PagedProductResponse response = productService.listProducts(null, PageRequest.of(0, 20));
+
+            // then
+            assertThat(response.content()).hasSize(1);
+            assertThat(response.content().getFirst().title()).isEqualTo("Test Product");
+            assertThat(response.page()).isZero();
+            assertThat(response.totalElements()).isEqualTo(1);
+            assertThat(response.totalPages()).isEqualTo(1);
+        }
+
+        @Test
+        void shouldReturnEmptyPage_whenNoProducts() {
+            // given
+            Page<Product> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")), 0);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(emptyPage);
+
+            // when
+            PagedProductResponse response = productService.listProducts(null, PageRequest.of(0, 20));
+
+            // then
+            assertThat(response.content()).isEmpty();
+            assertThat(response.totalElements()).isZero();
+            assertThat(response.totalPages()).isZero();
+        }
+
+        @Test
+        void shouldFilterByStatus_whenStatusProvided() {
+            // given
+            Product publishedProduct = Product.create("Published Product", "published-product");
+            Page<Product> page = new PageImpl<>(List.of(publishedProduct), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")), 1);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+
+            // when
+            PagedProductResponse response = productService.listProducts("PUBLISHED", PageRequest.of(0, 20));
+
+            // then
+            assertThat(response.content()).hasSize(1);
+            verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
+        }
+
+        @Test
+        void shouldHandleCaseInsensitiveStatusFilter() {
+            // given
+            Page<Product> page = new PageImpl<>(List.of(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")), 0);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+
+            // when
+            PagedProductResponse response = productService.listProducts("published", PageRequest.of(0, 20));
+
+            // then
+            assertThat(response).isNotNull();
+            verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
+        }
+
+        @Test
+        void shouldThrowBusinessRuleException_whenInvalidStatus() {
+            // when / then
+            assertThatThrownBy(() -> productService.listProducts("INVALID", PageRequest.of(0, 20)))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Invalid product status")
+                    .hasMessageContaining("INVALID");
+
+            verify(productRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+        }
+
+        @Test
+        @SuppressWarnings("PMD.JUnitTestContainsTooManyAsserts")
+        void shouldCapPageSizeToMaximum() {
+            // given
+            Page<Product> page = new PageImpl<>(List.of(), PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createdAt")), 0);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+
+            // when
+            productService.listProducts(null, PageRequest.of(0, 200));
+
+            // then
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(productRepository).findAll(any(Specification.class), pageableCaptor.capture());
+            assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(100);
+        }
+
+        @Test
+        @SuppressWarnings("PMD.JUnitTestContainsTooManyAsserts")
+        void shouldApplyDefaultSortWhenUnsorted() {
+            // given
+            Page<Product> page = new PageImpl<>(List.of(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")), 0);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+
+            // when
+            productService.listProducts(null, PageRequest.of(0, 20));
+
+            // then
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(productRepository).findAll(any(Specification.class), pageableCaptor.capture());
+            Sort sort = pageableCaptor.getValue().getSort();
+            assertThat(sort.getOrderFor("createdAt")).isNotNull();
+            assertThat(sort.getOrderFor("createdAt").getDirection()).isEqualTo(Sort.Direction.DESC);
+        }
+
+        @Test
+        void shouldPreserveExplicitSort() {
+            // given
+            Sort explicitSort = Sort.by(Sort.Direction.ASC, "title");
+            Page<Product> page = new PageImpl<>(List.of(), PageRequest.of(0, 20, explicitSort), 0);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+
+            // when
+            productService.listProducts(null, PageRequest.of(0, 20, explicitSort));
+
+            // then
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(productRepository).findAll(any(Specification.class), pageableCaptor.capture());
+            assertThat(pageableCaptor.getValue().getSort().getOrderFor("title")).isNotNull();
+        }
+
+        @Test
+        void shouldTreatBlankStatusAsNoFilter() {
+            // given
+            Page<Product> page = new PageImpl<>(List.of(), PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")), 0);
+            when(productRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(page);
+
+            // when
+            PagedProductResponse response = productService.listProducts("  ", PageRequest.of(0, 20));
+
+            // then
+            assertThat(response).isNotNull();
         }
     }
 }
