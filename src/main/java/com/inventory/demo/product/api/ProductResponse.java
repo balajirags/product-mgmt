@@ -2,14 +2,18 @@ package com.inventory.demo.product.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.inventory.demo.product.domain.Product;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Response DTO for a product.
  */
+@SuppressFBWarnings(value = {"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "NP_LOAD_OF_KNOWN_NULL_VALUE"}, justification = "Record DTO — List.copyOf in compact constructor ensures immutability; null-guard is intentional")
+@SuppressWarnings("PMD.UnusedAssignment") // PMD false positive with record compact constructor
 public record ProductResponse(
         @JsonProperty("id")
         UUID id,
@@ -57,8 +61,18 @@ public record ProductResponse(
         Instant createdAt,
 
         @JsonProperty("updated_at")
-        Instant updatedAt
+        Instant updatedAt,
+
+        @JsonProperty("options")
+        List<ProductOptionResponse> options
 ) {
+
+    /**
+     * Compact constructor that creates a defensive copy of the options list.
+     */
+    public ProductResponse {
+        options = options != null ? List.copyOf(options) : List.of();
+    }
 
     /**
      * Maps a Product domain entity to a ProductResponse DTO.
@@ -67,6 +81,11 @@ public record ProductResponse(
      * @return the response DTO
      */
     public static ProductResponse fromEntity(Product product) {
+        List<ProductOptionResponse> optionResponses = product.getOptions().stream()
+                .filter(option -> option.getDeletedAt() == null)
+                .map(ProductOptionResponse::fromEntity)
+                .toList();
+
         return new ProductResponse(
                 product.getId(),
                 product.getTitle(),
@@ -83,7 +102,8 @@ public record ProductResponse(
                 product.getMetadata(),
                 product.getExternalId(),
                 product.getCreatedAt(),
-                product.getUpdatedAt()
+                product.getUpdatedAt(),
+                optionResponses
         );
     }
 }

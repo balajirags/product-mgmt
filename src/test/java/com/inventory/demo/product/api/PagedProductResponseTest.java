@@ -20,7 +20,8 @@ class PagedProductResponseTest {
                 "desc", "sub", false, true,
                 new BigDecimal("1.0"), new BigDecimal("2.0"),
                 new BigDecimal("3.0"), new BigDecimal("4.0"),
-                null, null, Instant.now(), Instant.now()
+                null, null, Instant.now(), Instant.now(),
+                List.of()
         );
     }
 

@@ -1,17 +1,23 @@
 package com.inventory.demo.product.domain;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -92,6 +98,10 @@ public class Product {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @SQLRestriction("deleted_at IS NULL")
+    private final List<ProductOption> options = new ArrayList<>();
 
     protected Product() {
         // JPA requires a no-arg constructor
@@ -293,5 +303,35 @@ public class Product {
 
     public Instant getDeletedAt() {
         return deletedAt;
+    }
+
+    /**
+     * Adds a new option to this product.
+     *
+     * @param title the option title (e.g., "Size", "Color")
+     * @return the created ProductOption
+     */
+    public ProductOption addOption(String title) {
+        ProductOption option = ProductOption.create(this, title);
+        this.options.add(option);
+        return option;
+    }
+
+    /**
+     * Returns an unmodifiable view of the product options.
+     *
+     * @return the product options
+     */
+    public List<ProductOption> getOptions() {
+        return Collections.unmodifiableList(options);
+    }
+
+    /**
+     * Returns the mutable options list for internal modification.
+     *
+     * @return the mutable options list
+     */
+    List<ProductOption> getOptionsMutable() {
+        return options;
     }
 }
