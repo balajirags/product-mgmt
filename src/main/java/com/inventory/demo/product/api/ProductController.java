@@ -1,5 +1,6 @@
 package com.inventory.demo.product.api;
 
+import com.inventory.demo.product.service.BatchProductService;
 import com.inventory.demo.product.service.ProductService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -27,9 +28,11 @@ public class ProductController {
     private static final Logger log = LoggerFactory.getLogger(ProductController.class);
 
     private final ProductService productService;
+    private final BatchProductService batchProductService;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, BatchProductService batchProductService) {
         this.productService = productService;
+        this.batchProductService = batchProductService;
     }
 
     /**
@@ -89,6 +92,23 @@ public class ProductController {
             @RequestBody UpdateProductRequest request) {
         log.info("POST /api/v1/products/{} - Updating product", id);
         ProductResponse response = productService.updateProduct(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Executes batch product operations: create, update, and delete in a single call.
+     * Operations execute in order: creates first, then updates, then deletes.
+     * Partial failures do not roll back successful operations.
+     *
+     * @param request the batch request with create, update, and delete arrays
+     * @return composite response with per-item results for each operation type
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<BatchProductResponse> batchProducts(
+            @Valid @RequestBody BatchProductRequest request) {
+        log.info("POST /api/v1/products/batch - Batch operation: creates={}, updates={}, deletes={}",
+                request.create().size(), request.update().size(), request.delete().size());
+        BatchProductResponse response = batchProductService.executeBatch(request);
         return ResponseEntity.ok(response);
     }
 }

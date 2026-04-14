@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.GlobalExceptionHandler;
 import com.inventory.demo.exception.ResourceNotFoundException;
+import com.inventory.demo.product.service.BatchProductService;
 import com.inventory.demo.product.service.ProductService;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,9 @@ class ProductControllerTest {
 
     @MockitoBean
     private ProductService productService;
+
+    @MockitoBean
+    private BatchProductService batchProductService;
 
     private static ProductResponse sampleResponse() {
         return new ProductResponse(
