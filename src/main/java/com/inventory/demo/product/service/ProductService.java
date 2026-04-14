@@ -133,6 +133,24 @@ public class ProductService {
     }
 
     /**
+     * Soft-deletes a product by setting its deleted_at timestamp.
+     *
+     * @param id the product UUID
+     * @throws ResourceNotFoundException if no product exists with the given ID
+     */
+    @Transactional
+    public void softDeleteProduct(UUID id) {
+        log.info("Soft-deleting product: id={}", id);
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
+
+        product.softDelete();
+        productRepository.save(product);
+        log.info("Product soft-deleted successfully: id={}", id);
+    }
+
+    /**
      * Updates an existing product with partial update semantics.
      * Only non-null fields in the request are applied; null fields are left unchanged.
      *

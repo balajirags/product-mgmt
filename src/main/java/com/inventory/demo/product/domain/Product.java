@@ -368,4 +368,12 @@ public class Product {
     List<ProductVariant> getVariantsMutable() {
         return variants;
     }
+
+    /**
+     * Soft-deletes this product by setting the deleted_at timestamp.
+     */
+    public void softDelete() {
+        this.deletedAt = Instant.now();
+        this.updatedAt = Instant.now();
+    }
 }
