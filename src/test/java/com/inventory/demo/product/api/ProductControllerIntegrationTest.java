@@ -145,7 +145,7 @@ class ProductControllerIntegrationTest {
             String requestJson = """
                     {
                         "title": "Metadata Product",
-                        "metadata": "{\\"color\\":\\"red\\"}"
+                        "metadata": {"color":"red"}
                     }
                     """;
 
@@ -154,7 +154,7 @@ class ProductControllerIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestJson))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.metadata").value("{\"color\":\"red\"}"));
+                    .andExpect(jsonPath("$.metadata.color").value("red"));
         }
     }
 
@@ -287,7 +287,7 @@ class ProductControllerIntegrationTest {
                         "height": 10.0,
                         "width": 5.0,
                         "length": 3.0,
-                        "metadata": "{\\"color\\":\\"blue\\"}",
+                        "metadata": {"color":"blue"},
                         "external_id": "EXT-GET-001"
                     }
                     """;
@@ -315,7 +315,7 @@ class ProductControllerIntegrationTest {
                     .andExpect(jsonPath("$.height").value(10.0))
                     .andExpect(jsonPath("$.width").value(5.0))
                     .andExpect(jsonPath("$.length").value(3.0))
-                    .andExpect(jsonPath("$.metadata").value("{\"color\":\"blue\"}"))
+                    .andExpect(jsonPath("$.metadata.color").value("blue"))
                     .andExpect(jsonPath("$.external_id").value("EXT-GET-001"))
                     .andExpect(jsonPath("$.created_at").exists())
                     .andExpect(jsonPath("$.updated_at").exists());
@@ -608,7 +608,7 @@ class ProductControllerIntegrationTest {
                         "description": "Original description",
                         "subtitle": "Original subtitle",
                         "weight": 1.5,
-                        "metadata": "{\\"key\\":\\"value\\"}"
+                        "metadata": {"key":"value"}
                     }
                     """;
             MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
@@ -635,7 +635,7 @@ class ProductControllerIntegrationTest {
                     .andExpect(jsonPath("$.description").value("Original description"))
                     .andExpect(jsonPath("$.subtitle").value("Original subtitle"))
                     .andExpect(jsonPath("$.weight").value(1.5))
-                    .andExpect(jsonPath("$.metadata").value("{\"key\":\"value\"}"));
+                    .andExpect(jsonPath("$.metadata.key").value("value"));
         }
 
         @Test

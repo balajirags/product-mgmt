@@ -11,13 +11,17 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -87,8 +91,9 @@ public class Product {
     @Column(name = "external_id")
     private String externalId;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata")
-    private String metadata;
+    private Map<String, Object> metadata;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -177,12 +182,13 @@ public class Product {
     }
 
     /**
-     * Sets the serialised JSON metadata.
+     * Replaces product metadata with the given key-value map.
      *
-     * @param metadata the JSON metadata string
+     * @param metadata the metadata map (may be empty but not null)
      */
-    public void attachMetadata(String metadata) {
-        this.metadata = metadata;
+    @SuppressWarnings("PMD.NullAssignment") // null metadata is a valid domain state (no metadata set)
+    public void attachMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata != null ? new HashMap<>(metadata) : null;
     }
 
     /**
@@ -293,8 +299,8 @@ public class Product {
         return externalId;
     }
 
-    public String getMetadata() {
-        return metadata;
+    public Map<String, Object> getMetadata() {
+        return metadata != null ? Collections.unmodifiableMap(metadata) : null;
     }
 
     public Instant getCreatedAt() {

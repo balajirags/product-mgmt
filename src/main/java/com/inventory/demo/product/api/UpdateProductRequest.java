@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Request DTO for updating an existing product.
@@ -43,7 +44,7 @@ public record UpdateProductRequest(
         BigDecimal length,
 
         @JsonProperty("metadata")
-        String metadata,
+        Map<String, Object> metadata,
 
         @JsonProperty("external_id")
         String externalId,

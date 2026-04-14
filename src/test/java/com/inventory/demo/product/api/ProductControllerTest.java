@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -64,7 +65,7 @@ class ProductControllerTest {
                 new BigDecimal("10.0"),
                 new BigDecimal("5.0"),
                 new BigDecimal("3.0"),
-                "{\"key\":\"value\"}",
+                Map.of("key", "value"),
                 "EXT-001",
                 Instant.now(),
                 Instant.now(),
@@ -117,7 +118,7 @@ class ProductControllerTest {
                         "height": 10.0,
                         "width": 5.0,
                         "length": 3.0,
-                        "metadata": "{\\"key\\":\\"value\\"}",
+                        "metadata": {"key":"value"},
                         "external_id": "EXT-001"
                     }
                     """;
