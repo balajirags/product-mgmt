@@ -13,13 +13,16 @@ import com.inventory.demo.product.domain.ProductOption;
 import com.inventory.demo.product.domain.ProductVariant;
 import com.inventory.demo.product.repository.ProductRepository;
 import com.inventory.demo.product.repository.ProductVariantRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -50,6 +53,12 @@ class ProductServiceTest {
     @Mock
     private ProductVariantRepository variantRepository;
 
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private ProductService productService;
 
@@ -79,7 +88,7 @@ class ProductServiceTest {
                 new BigDecimal("10.0"),
                 new BigDecimal("5.0"),
                 new BigDecimal("3.0"),
-                "{\"color\":\"red\"}",
+                Map.of("color", "red"),
                 "EXT-001",
                 null,
                 null
@@ -167,7 +176,7 @@ class ProductServiceTest {
             assertThat(response.height()).isEqualByComparingTo(new BigDecimal("10.0"));
             assertThat(response.width()).isEqualByComparingTo(new BigDecimal("5.0"));
             assertThat(response.length()).isEqualByComparingTo(new BigDecimal("3.0"));
-            assertThat(response.metadata()).isEqualTo("{\"color\":\"red\"}");
+            assertThat(response.metadata()).containsEntry("color", "red");
             assertThat(response.externalId()).isEqualTo("EXT-001");
         }
 
@@ -245,6 +254,27 @@ class ProductServiceTest {
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessageContaining("Invalid product status")
                     .hasMessageContaining("INVALID_STATUS");
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectMetadataExceedingMaxSize() {
+            // given — build metadata that exceeds 65_536 bytes
+            StringBuilder largeValue = new StringBuilder();
+            for (int i = 0; i < 70_000; i++) {
+                largeValue.append('x');
+            }
+            Map<String, Object> oversizedMetadata = Map.of("data", largeValue.toString());
+            CreateProductRequest request = new CreateProductRequest(
+                    "Test Product", null, null, null, null,
+                    null, null, null, null, oversizedMetadata, null, null, null);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+
+            // when / then
+            assertThatThrownBy(() -> productService.createProduct(request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Metadata exceeds maximum size");
 
             verify(productRepository, never()).save(any());
         }
@@ -472,7 +502,7 @@ class ProductServiceTest {
                                                        String description, String subtitle,
                                                        BigDecimal weight, BigDecimal height,
                                                        BigDecimal width, BigDecimal length,
-                                                       String metadata, String externalId) {
+                                                       Map<String, Object> metadata, String externalId) {
         return new UpdateProductRequest(title, handle, status, description, subtitle,
                 weight, height, width, length, metadata, externalId, null, null);
     }
@@ -556,7 +586,7 @@ class ProductServiceTest {
                     "New description", "New subtitle",
                     new BigDecimal("2.5"), new BigDecimal("20.0"),
                     new BigDecimal("10.0"), new BigDecimal("5.0"),
-                    "{\"updated\":true}", "EXT-002");
+                    Map.of("updated", true), "EXT-002");
 
             // when
             ProductResponse response = productService.updateProduct(productId, request);
@@ -568,7 +598,7 @@ class ProductServiceTest {
             assertThat(response.description()).isEqualTo("New description");
             assertThat(response.subtitle()).isEqualTo("New subtitle");
             assertThat(response.weight()).isEqualByComparingTo(new BigDecimal("2.5"));
-            assertThat(response.metadata()).isEqualTo("{\"updated\":true}");
+            assertThat(response.metadata()).containsEntry("updated", true);
             assertThat(response.externalId()).isEqualTo("EXT-002");
         }
 

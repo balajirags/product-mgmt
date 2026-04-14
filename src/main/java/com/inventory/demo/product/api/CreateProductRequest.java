@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Request DTO for creating a new product.
@@ -44,7 +45,7 @@ public record CreateProductRequest(
         BigDecimal length,
 
         @JsonProperty("metadata")
-        String metadata,
+        Map<String, Object> metadata,
 
         @JsonProperty("external_id")
         String externalId,

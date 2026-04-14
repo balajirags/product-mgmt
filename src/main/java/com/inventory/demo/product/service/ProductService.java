@@ -13,11 +13,16 @@ import com.inventory.demo.product.domain.ProductOption;
 import com.inventory.demo.product.domain.ProductOptionValue;
 import com.inventory.demo.product.domain.ProductStatus;
 import com.inventory.demo.product.domain.ProductVariant;
+import com.inventory.demo.product.event.ProductCreatedEvent;
+import com.inventory.demo.product.event.ProductDeletedEvent;
+import com.inventory.demo.product.event.ProductUpdatedEvent;
 import com.inventory.demo.product.repository.ProductRepository;
 import com.inventory.demo.product.repository.ProductSpecifications;
 import com.inventory.demo.product.repository.ProductVariantRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +44,7 @@ import java.util.UUID;
  */
 @Service
 @SuppressWarnings({"PMD.GodClass", "PMD.CyclomaticComplexity", "PMD.ExcessiveImports", "PMD.CouplingBetweenObjects", "PMD.AvoidDuplicateLiterals"}) // Service handles full product + variant CRUD lifecycle with many small methods
+@edu.umd.cs.findbugs.annotations.SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "Spring-managed beans injected by the container")
 public class ProductService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
@@ -50,6 +56,8 @@ public class ProductService {
     private static final String DUPLICATE_SKU_ERROR = "DUPLICATE_SKU";
     private static final String DUPLICATE_BARCODE_ERROR = "DUPLICATE_BARCODE";
     private static final String VARIANT_OPTION_NOT_FOUND_ERROR = "VARIANT_OPTION_NOT_FOUND";
+    private static final String METADATA_TOO_LARGE_ERROR = "METADATA_TOO_LARGE";
+    private static final int MAX_METADATA_SIZE_BYTES = 65_536;
     private static final String SLUG_SEPARATOR = "-";
     private static final String NON_ALPHANUMERIC_PATTERN = "[^a-z0-9\\-]";
     private static final String CONSECUTIVE_HYPHENS_PATTERN = "-{2,}";
@@ -59,10 +67,15 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final ProductVariantRepository variantRepository;
+    private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public ProductService(ProductRepository productRepository, ProductVariantRepository variantRepository) {
+    public ProductService(ProductRepository productRepository, ProductVariantRepository variantRepository,
+                          ObjectMapper objectMapper, ApplicationEventPublisher eventPublisher) {
         this.productRepository = productRepository;
         this.variantRepository = variantRepository;
+        this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -89,6 +102,9 @@ public class ProductService {
         Product saved = productRepository.save(product);
         log.info("Product created successfully: id={}, handle={}, status={}",
                 saved.getId(), saved.getHandle(), saved.getStatus());
+
+        eventPublisher.publishEvent(ProductCreatedEvent.create(
+                saved.getId(), saved.getTitle(), saved.getHandle(), saved.getStatus().name()));
 
         return ProductResponse.fromEntity(saved);
     }
@@ -148,6 +164,8 @@ public class ProductService {
         product.softDelete();
         productRepository.save(product);
         log.info("Product soft-deleted successfully: id={}", id);
+
+        eventPublisher.publishEvent(ProductDeletedEvent.create(id));
     }
 
     /**
@@ -175,6 +193,10 @@ public class ProductService {
             product.markUpdated();
             Product saved = productRepository.save(product);
             log.info("Product updated successfully: id={}, handle={}", saved.getId(), saved.getHandle());
+
+            eventPublisher.publishEvent(ProductUpdatedEvent.create(
+                    saved.getId(), saved.getTitle(), saved.getHandle(), saved.getStatus().name()));
+
             return ProductResponse.fromEntity(saved);
         }
 
@@ -250,6 +272,7 @@ public class ProductService {
                     request.width(), request.length());
         }
         if (request.metadata() != null) {
+            validateMetadataSize(request.metadata());
             product.attachMetadata(request.metadata());
         }
         if (request.externalId() != null) {
@@ -334,6 +357,7 @@ public class ProductService {
         boolean modified = false;
 
         if (request.metadata() != null) {
+            validateMetadataSize(request.metadata());
             product.attachMetadata(request.metadata());
             modified = true;
         }
@@ -349,6 +373,22 @@ public class ProductService {
     private void validateTitle(String title) {
         if (title.isBlank()) {
             throw new BusinessRuleException(BLANK_TITLE_ERROR, "Product title must not be blank");
+        }
+    }
+
+    private void validateMetadataSize(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return;
+        }
+        try {
+            byte[] serialized = objectMapper.writeValueAsBytes(metadata);
+            if (serialized.length > MAX_METADATA_SIZE_BYTES) {
+                throw new BusinessRuleException(METADATA_TOO_LARGE_ERROR,
+                        "Metadata exceeds maximum size of " + MAX_METADATA_SIZE_BYTES + " bytes");
+            }
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new BusinessRuleException(METADATA_TOO_LARGE_ERROR,
+                    "Metadata could not be serialized", ex);
         }
     }
 
