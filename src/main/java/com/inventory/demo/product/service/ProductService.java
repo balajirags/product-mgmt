@@ -4,11 +4,13 @@ import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.PagedProductResponse;
 import com.inventory.demo.product.api.CreateProductRequest;
+import com.inventory.demo.product.api.ProductImageRequest;
 import com.inventory.demo.product.api.ProductOptionRequest;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.api.ProductVariantRequest;
 import com.inventory.demo.product.api.UpdateProductRequest;
 import com.inventory.demo.product.domain.Product;
+import com.inventory.demo.product.domain.ProductImage;
 import com.inventory.demo.product.domain.ProductOption;
 import com.inventory.demo.product.domain.ProductOptionValue;
 import com.inventory.demo.product.domain.ProductStatus;
@@ -57,6 +59,7 @@ public class ProductService {
     private static final String DUPLICATE_BARCODE_ERROR = "DUPLICATE_BARCODE";
     private static final String VARIANT_OPTION_NOT_FOUND_ERROR = "VARIANT_OPTION_NOT_FOUND";
     private static final String METADATA_TOO_LARGE_ERROR = "METADATA_TOO_LARGE";
+    private static final String INVALID_IMAGE_URL_ERROR = "INVALID_IMAGE_URL";
     private static final int MAX_METADATA_SIZE_BYTES = 65_536;
     private static final String SLUG_SEPARATOR = "-";
     private static final String NON_ALPHANUMERIC_PATTERN = "[^a-z0-9\\-]";
@@ -278,6 +281,10 @@ public class ProductService {
         if (request.externalId() != null) {
             product.assignExternalId(request.externalId());
         }
+        if (request.thumbnail() != null) {
+            product.setThumbnail(request.thumbnail());
+        }
+        applyImages(product, request.images());
     }
 
     @SuppressWarnings("PMD.CognitiveComplexity") // Simple null-check sequence for partial update
@@ -286,8 +293,9 @@ public class ProductService {
         boolean handleChanged = applyHandleUpdate(product, productId, request);
         boolean statusChanged = applyStatusUpdate(product, request);
         boolean fieldsChanged = applyFieldUpdates(product, request);
+        boolean imagesChanged = applyImagesUpdate(product, request.images());
 
-        return titleChanged || handleChanged || statusChanged || fieldsChanged;
+        return titleChanged || handleChanged || statusChanged || fieldsChanged || imagesChanged;
     }
 
     private boolean applyTitleUpdate(Product product, UpdateProductRequest request) {
@@ -364,6 +372,11 @@ public class ProductService {
 
         if (request.externalId() != null) {
             product.assignExternalId(request.externalId());
+            modified = true;
+        }
+
+        if (request.thumbnail() != null) {
+            product.setThumbnail(request.thumbnail());
             modified = true;
         }
 
@@ -681,5 +694,43 @@ public class ProductService {
             }
         }
         return null;
+    }
+
+    private void applyImages(Product product, List<ProductImageRequest> imageRequests) {
+        if (imageRequests == null || imageRequests.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < imageRequests.size(); i++) {
+            validateImageUrl(imageRequests.get(i).url());
+            product.addImage(imageRequests.get(i).url(), i);
+        }
+        log.info("Applied {} images to product", imageRequests.size());
+    }
+
+    private boolean applyImagesUpdate(Product product, List<ProductImageRequest> imageRequests) {
+        if (imageRequests == null) {
+            return false;
+        }
+        softDeleteExistingImages(product);
+        for (int i = 0; i < imageRequests.size(); i++) {
+            validateImageUrl(imageRequests.get(i).url());
+            product.addImage(imageRequests.get(i).url(), i);
+        }
+        log.info("Replaced images for product: id={}, imageCount={}", product.getId(), imageRequests.size());
+        return true;
+    }
+
+    private void softDeleteExistingImages(Product product) {
+        for (ProductImage image : product.getImages()) {
+            if (image.getDeletedAt() == null) {
+                image.softDelete();
+            }
+        }
+    }
+
+    private void validateImageUrl(String url) {
+        if (url == null || url.isBlank()) {
+            throw new BusinessRuleException(INVALID_IMAGE_URL_ERROR, "Image URL must not be empty");
+        }
     }
 }

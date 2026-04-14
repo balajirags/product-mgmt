@@ -50,6 +50,13 @@ public record CreateProductRequest(
         @JsonProperty("external_id")
         String externalId,
 
+        @JsonProperty("thumbnail")
+        String thumbnail,
+
+        @Valid
+        @JsonProperty("images")
+        List<ProductImageRequest> images,
+
         @Valid
         @JsonProperty("options")
         List<ProductOptionRequest> options,
@@ -63,6 +70,7 @@ public record CreateProductRequest(
      * Compact constructor that creates defensive copies of mutable list fields.
      */
     public CreateProductRequest {
+        images = images != null ? List.copyOf(images) : images;
         options = options != null ? List.copyOf(options) : options;
         variants = variants != null ? List.copyOf(variants) : variants;
     }

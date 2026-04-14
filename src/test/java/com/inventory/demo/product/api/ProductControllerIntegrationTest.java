@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,6 +48,7 @@ class ProductControllerIntegrationTest {
         jdbcTemplate.execute("DELETE FROM product_option_values");
         jdbcTemplate.execute("DELETE FROM product_variants");
         jdbcTemplate.execute("DELETE FROM product_options");
+        jdbcTemplate.execute("DELETE FROM product_images");
         jdbcTemplate.execute("DELETE FROM products");
     }
 
@@ -1399,6 +1401,336 @@ class ProductControllerIntegrationTest {
                             .content(duplicateRequest))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.error_code").value("DUPLICATE_BARCODE"));
+        }
+    }
+
+    @Nested
+    class ProductImagesCases {
+
+        @Test
+        void shouldCreateProductWithThumbnail() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Thumbnail Product",
+                        "thumbnail": "https://example.com/thumb.jpg"
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.thumbnail").value("https://example.com/thumb.jpg"));
+        }
+
+        @Test
+        void shouldCreateProductWithGalleryImages() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Gallery Product",
+                        "images": [
+                            {"url": "https://example.com/img1.jpg"},
+                            {"url": "https://example.com/img2.jpg"},
+                            {"url": "https://example.com/img3.jpg"}
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.images").isArray())
+                    .andExpect(jsonPath("$.images.length()").value(3))
+                    .andExpect(jsonPath("$.images[0].url").value("https://example.com/img1.jpg"))
+                    .andExpect(jsonPath("$.images[0].rank").value(0))
+                    .andExpect(jsonPath("$.images[1].url").value("https://example.com/img2.jpg"))
+                    .andExpect(jsonPath("$.images[1].rank").value(1))
+                    .andExpect(jsonPath("$.images[2].rank").value(2));
+        }
+
+        @Test
+        void shouldCreateProductWithThumbnailAndImages() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Full Image Product",
+                        "thumbnail": "https://example.com/thumb.jpg",
+                        "images": [
+                            {"url": "https://example.com/gallery1.jpg"}
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.thumbnail").value("https://example.com/thumb.jpg"))
+                    .andExpect(jsonPath("$.images.length()").value(1))
+                    .andExpect(jsonPath("$.images[0].url").value("https://example.com/gallery1.jpg"));
+        }
+
+        @Test
+        void shouldReturnImagesOnGetById() throws Exception {
+            // given — create product with images
+            String createJson = """
+                    {
+                        "title": "Fetch Images Test",
+                        "thumbnail": "https://example.com/thumb.jpg",
+                        "images": [
+                            {"url": "https://example.com/a.jpg"},
+                            {"url": "https://example.com/b.jpg"}
+                        ]
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when / then
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.thumbnail").value("https://example.com/thumb.jpg"))
+                    .andExpect(jsonPath("$.images.length()").value(2))
+                    .andExpect(jsonPath("$.images[0].url").value("https://example.com/a.jpg"))
+                    .andExpect(jsonPath("$.images[0].rank").value(0))
+                    .andExpect(jsonPath("$.images[1].url").value("https://example.com/b.jpg"))
+                    .andExpect(jsonPath("$.images[1].rank").value(1));
+        }
+
+        @Test
+        void shouldReplaceImagesOnUpdate() throws Exception {
+            // given — create product with initial images
+            String createJson = """
+                    {
+                        "title": "Replace Images Test",
+                        "images": [
+                            {"url": "https://example.com/old1.jpg"},
+                            {"url": "https://example.com/old2.jpg"}
+                        ]
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — update with new images
+            String updateJson = """
+                    {
+                        "images": [
+                            {"url": "https://example.com/new1.jpg"},
+                            {"url": "https://example.com/new2.jpg"},
+                            {"url": "https://example.com/new3.jpg"}
+                        ]
+                    }
+                    """;
+
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updateJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.images.length()").value(3))
+                    .andExpect(jsonPath("$.images[0].url").value("https://example.com/new1.jpg"))
+                    .andExpect(jsonPath("$.images[2].url").value("https://example.com/new3.jpg"));
+
+            // then — verify via GET that old images are gone
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.images.length()").value(3));
+        }
+
+        @Test
+        void shouldClearImagesWhenEmptyArrayProvided() throws Exception {
+            // given — create product with images
+            String createJson = """
+                    {
+                        "title": "Clear Images Test",
+                        "images": [
+                            {"url": "https://example.com/to-remove.jpg"}
+                        ]
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — update with empty images array
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"images\": []}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.images.length()").value(0));
+        }
+
+        @Test
+        void shouldPreserveImagesWhenNotInUpdate() throws Exception {
+            // given — create product with images
+            String createJson = """
+                    {
+                        "title": "Preserve Images Test",
+                        "images": [
+                            {"url": "https://example.com/keep.jpg"}
+                        ]
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — update title only, no images field
+            mockMvc.perform(post(PRODUCTS_URL + "/{id}", productId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\": \"Updated Title\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.images.length()").value(1))
+                    .andExpect(jsonPath("$.images[0].url").value("https://example.com/keep.jpg"));
+        }
+
+        @Test
+        void shouldRejectBlankImageUrl() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "Bad Image Product",
+                        "images": [
+                            {"url": "   "}
+                        ]
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void shouldCreateProductWithNoImages() throws Exception {
+            // given
+            String requestJson = """
+                    {
+                        "title": "No Images Product"
+                    }
+                    """;
+
+            // when / then
+            mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.images").isArray())
+                    .andExpect(jsonPath("$.images.length()").value(0))
+                    .andExpect(jsonPath("$.thumbnail").doesNotExist());
+        }
+    }
+
+    @Nested
+    class DeleteProductCases {
+
+        @Test
+        void shouldSoftDeleteProduct() throws Exception {
+            // given
+            String productId = createProductAndReturnId("Delete Me");
+
+            // when / then
+            mockMvc.perform(delete(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isNoContent());
+
+            // then — product no longer returned
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void shouldReturnNotFound_whenDeletingNonExistentProduct() throws Exception {
+            // given
+            UUID unknownId = UUID.randomUUID();
+
+            // when / then
+            mockMvc.perform(delete(PRODUCTS_URL + "/{id}", unknownId))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.error_code").value("RESOURCE_NOT_FOUND"));
+        }
+
+        @Test
+        void shouldCascadeSoftDeleteToImages() throws Exception {
+            // given — create product with images
+            String createJson = """
+                    {
+                        "title": "Cascade Delete Test",
+                        "thumbnail": "https://example.com/thumb.jpg",
+                        "images": [
+                            {"url": "https://example.com/img1.jpg"},
+                            {"url": "https://example.com/img2.jpg"}
+                        ]
+                    }
+                    """;
+            MvcResult createResult = mockMvc.perform(post(PRODUCTS_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createJson))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String productId = objectMapper.readTree(
+                    createResult.getResponse().getContentAsString()).get("id").asText();
+
+            // when — delete product
+            mockMvc.perform(delete(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isNoContent());
+
+            // then — product is gone
+            mockMvc.perform(get(PRODUCTS_URL + "/{id}", productId))
+                    .andExpect(status().isNotFound());
+
+            // verify images are also soft-deleted in DB
+            Integer imageCount = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM product_images WHERE product_id = CAST(? AS UUID) AND deleted_at IS NULL",
+                    Integer.class, productId);
+            assertThat(imageCount).isZero();
+        }
+
+        @Test
+        void shouldExcludeDeletedProductFromList() throws Exception {
+            // given
+            createProduct("Product A");
+            String deleteId = createProductAndReturnId("Product B");
+            createProduct("Product C");
+
+            // when — delete Product B
+            mockMvc.perform(delete(PRODUCTS_URL + "/{id}", deleteId))
+                    .andExpect(status().isNoContent());
+
+            // then — only 2 products remain
+            mockMvc.perform(get(PRODUCTS_URL))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.total_elements").value(2));
         }
     }
 }

@@ -46,8 +46,8 @@ class BatchProductControllerTest {
         return new ProductResponse(
                 UUID.randomUUID(), title, title.toLowerCase().replace(' ', '-'),
                 "DRAFT", null, null, false, true,
-                null, null, null, null, null, null,
-                Instant.now(), Instant.now(), List.of(), List.of());
+                null, null, null, null, null, null, null,
+                Instant.now(), Instant.now(), List.of(), List.of(), List.of());
     }
 
     @Nested

@@ -42,20 +42,20 @@ class BatchProductServiceTest {
 
     private static CreateProductRequest createRequest(String title) {
         return new CreateProductRequest(title, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     private static ProductResponse sampleResponse(String title) {
         return new ProductResponse(
                 UUID.randomUUID(), title, title.toLowerCase().replace(' ', '-'),
                 "DRAFT", null, null, false, true,
-                null, null, null, null, null, null,
-                Instant.now(), Instant.now(), List.of(), List.of());
+                null, null, null, null, null, null, null,
+                Instant.now(), Instant.now(), List.of(), List.of(), List.of());
     }
 
     private static UpdateProductRequest updateRequest(String title) {
         return new UpdateProductRequest(title, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     @Nested

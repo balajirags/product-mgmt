@@ -31,7 +31,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "products")
 @SQLRestriction("deleted_at IS NULL")
-@SuppressWarnings("PMD.TooManyFields") // Domain entity mirrors wide database table
+@SuppressWarnings({"PMD.TooManyFields", "PMD.AvoidDuplicateLiterals"}) // Domain entity mirrors wide database table; SQL restriction repeated on child collections
 public class Product {
 
     @Id
@@ -111,6 +111,10 @@ public class Product {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @SQLRestriction("deleted_at IS NULL")
     private final List<ProductVariant> variants = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @SQLRestriction("deleted_at IS NULL")
+    private final List<ProductImage> images = new ArrayList<>();
 
     protected Product() {
         // JPA requires a no-arg constructor
@@ -376,10 +380,55 @@ public class Product {
     }
 
     /**
-     * Soft-deletes this product by setting the deleted_at timestamp.
+     * Sets the product thumbnail URL.
+     *
+     * @param thumbnail the thumbnail image URL
+     */
+    public void setThumbnail(String thumbnail) {
+        this.thumbnail = thumbnail;
+    }
+
+    /**
+     * Adds a gallery image to this product at the specified rank.
+     *
+     * @param url  the image URL
+     * @param rank the display position (0-based)
+     * @return the created ProductImage
+     */
+    public ProductImage addImage(String url, int rank) {
+        ProductImage image = ProductImage.create(this, url, rank);
+        this.images.add(image);
+        return image;
+    }
+
+    /**
+     * Returns an unmodifiable view of the product images.
+     *
+     * @return the product images
+     */
+    public List<ProductImage> getImages() {
+        return Collections.unmodifiableList(images);
+    }
+
+    /**
+     * Returns the mutable images list for internal modification.
+     *
+     * @return the mutable images list
+     */
+    List<ProductImage> getImagesMutable() {
+        return images;
+    }
+
+    /**
+     * Soft-deletes this product and cascades soft-delete to all images.
      */
     public void softDelete() {
         this.deletedAt = Instant.now();
         this.updatedAt = Instant.now();
+        for (ProductImage image : images) {
+            if (image.getDeletedAt() == null) {
+                image.softDelete();
+            }
+        }
     }
 }
