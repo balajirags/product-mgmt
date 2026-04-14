@@ -4,11 +4,13 @@ import com.inventory.demo.exception.BusinessRuleException;
 import com.inventory.demo.exception.ResourceNotFoundException;
 import com.inventory.demo.product.api.CreateProductRequest;
 import com.inventory.demo.product.api.PagedProductResponse;
+import com.inventory.demo.product.api.ProductImageRequest;
 import com.inventory.demo.product.api.ProductOptionRequest;
 import com.inventory.demo.product.api.ProductResponse;
 import com.inventory.demo.product.api.ProductVariantRequest;
 import com.inventory.demo.product.api.UpdateProductRequest;
 import com.inventory.demo.product.domain.Product;
+import com.inventory.demo.product.domain.ProductImage;
 import com.inventory.demo.product.domain.ProductOption;
 import com.inventory.demo.product.domain.ProductVariant;
 import com.inventory.demo.product.repository.ProductRepository;
@@ -64,17 +66,17 @@ class ProductServiceTest {
 
     private static CreateProductRequest minimalRequest(String title) {
         return new CreateProductRequest(title, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest requestWithHandle(String title, String handle) {
         return new CreateProductRequest(title, handle, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest requestWithStatus(String title, String status) {
         return new CreateProductRequest(title, null, status, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     private static CreateProductRequest fullRequest() {
@@ -90,6 +92,8 @@ class ProductServiceTest {
                 new BigDecimal("3.0"),
                 Map.of("color", "red"),
                 "EXT-001",
+                null,
+                null,
                 null,
                 null
         );
@@ -268,7 +272,7 @@ class ProductServiceTest {
             Map<String, Object> oversizedMetadata = Map.of("data", largeValue.toString());
             CreateProductRequest request = new CreateProductRequest(
                     "Test Product", null, null, null, null,
-                    null, null, null, null, oversizedMetadata, null, null, null);
+                    null, null, null, null, oversizedMetadata, null, null, null, null, null);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
 
             // when / then
@@ -504,7 +508,7 @@ class ProductServiceTest {
                                                        BigDecimal width, BigDecimal length,
                                                        Map<String, Object> metadata, String externalId) {
         return new UpdateProductRequest(title, handle, status, description, subtitle,
-                weight, height, width, length, metadata, externalId, null, null);
+                weight, height, width, length, metadata, externalId, null, null, null, null);
     }
 
     private static UpdateProductRequest titleOnlyUpdate(String title) {
@@ -806,7 +810,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, options, null);
+                    null, null, null, null, null, null, null, null, options, null);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -844,7 +848,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, options, null);
+                    null, null, null, null, null, null, null, null, options, null);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
 
             // when / then
@@ -872,7 +876,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options, null);
+                    null, null, null, null, null, null, null, null, options, null);
 
             // when
             ProductResponse response = productService.updateProduct(productId, request);
@@ -900,7 +904,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options, null);
+                    null, null, null, null, null, null, null, null, options, null);
 
             // when
             ProductResponse response = productService.updateProduct(productId, request);
@@ -928,7 +932,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options, null);
+                    null, null, null, null, null, null, null, null, options, null);
 
             // when
             productService.updateProduct(productId, request);
@@ -950,7 +954,7 @@ class ProductServiceTest {
 
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null, null);
 
             // when
             productService.updateProduct(productId, request);
@@ -973,7 +977,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, options, null);
+                    null, null, null, null, null, null, null, null, options, null);
 
             // when / then
             assertThatThrownBy(() -> productService.updateProduct(productId, request))
@@ -1001,7 +1005,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, options, variants);
+                    null, null, null, null, null, null, null, null, options, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1043,7 +1047,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, options, variants);
+                    null, null, null, null, null, null, null, null, options, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1063,7 +1067,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1084,7 +1088,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(variantRepository.existsBySku("DUPE-SKU")).thenReturn(true);
 
@@ -1106,7 +1110,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(variantRepository.existsByBarcode("DUPE-BC")).thenReturn(true);
 
@@ -1128,7 +1132,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1151,7 +1155,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1174,7 +1178,7 @@ class ProductServiceTest {
             );
             CreateProductRequest request = new CreateProductRequest(
                     "T-Shirt", null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
             when(productRepository.existsByHandle(anyString())).thenReturn(false);
 
             // when / then
@@ -1203,7 +1207,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
 
             // when
             ProductResponse response = productService.updateProduct(productId, request);
@@ -1234,7 +1238,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
 
             // when
             productService.updateProduct(productId, request);
@@ -1262,7 +1266,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
 
             // when
             ProductResponse response = productService.updateProduct(productId, request);
@@ -1284,7 +1288,7 @@ class ProductServiceTest {
 
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null, null);
 
             // when
             productService.updateProduct(productId, request);
@@ -1307,7 +1311,7 @@ class ProductServiceTest {
             );
             UpdateProductRequest request = new UpdateProductRequest(
                     null, null, null, null, null,
-                    null, null, null, null, null, null, null, variants);
+                    null, null, null, null, null, null, null, null, null, variants);
             when(variantRepository.existsBySku("DUPE-SKU")).thenReturn(true);
 
             // when / then
@@ -1316,6 +1320,287 @@ class ProductServiceTest {
                     .hasMessageContaining("SKU");
 
             verify(productRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    class CreateProductWithImagesCases {
+
+        @Test
+        void shouldCreateProductWithThumbnail() {
+            // given
+            CreateProductRequest request = new CreateProductRequest(
+                    "Image Product", null, null, null, null,
+                    null, null, null, null, null, null,
+                    "https://example.com/thumb.jpg", null, null, null);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.thumbnail()).isEqualTo("https://example.com/thumb.jpg");
+        }
+
+        @Test
+        void shouldCreateProductWithGalleryImages() {
+            // given
+            List<ProductImageRequest> images = List.of(
+                    new ProductImageRequest("https://example.com/img1.jpg"),
+                    new ProductImageRequest("https://example.com/img2.jpg"),
+                    new ProductImageRequest("https://example.com/img3.jpg")
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "Gallery Product", null, null, null, null,
+                    null, null, null, null, null, null, null, images, null, null);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.images()).hasSize(3);
+            assertThat(response.images().get(0).url()).isEqualTo("https://example.com/img1.jpg");
+            assertThat(response.images().get(0).rank()).isZero();
+            assertThat(response.images().get(1).rank()).isEqualTo(1);
+            assertThat(response.images().get(2).rank()).isEqualTo(2);
+        }
+
+        @Test
+        void shouldCreateProductWithThumbnailAndImages() {
+            // given
+            List<ProductImageRequest> images = List.of(
+                    new ProductImageRequest("https://example.com/img1.jpg")
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "Full Image Product", null, null, null, null,
+                    null, null, null, null, null, null,
+                    "https://example.com/thumb.jpg", images, null, null);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.thumbnail()).isEqualTo("https://example.com/thumb.jpg");
+            assertThat(response.images()).hasSize(1);
+        }
+
+        @Test
+        void shouldCreateProductWithNoImagesOrThumbnail() {
+            // given
+            CreateProductRequest request = minimalRequest("No Images Product");
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            ProductResponse response = productService.createProduct(request);
+
+            // then
+            assertThat(response.thumbnail()).isNull();
+            assertThat(response.images()).isEmpty();
+        }
+
+        @Test
+        void shouldRejectBlankImageUrl() {
+            // given
+            List<ProductImageRequest> images = List.of(
+                    new ProductImageRequest("   ")
+            );
+            CreateProductRequest request = new CreateProductRequest(
+                    "Bad Image Product", null, null, null, null,
+                    null, null, null, null, null, null, null, images, null, null);
+            when(productRepository.existsByHandle(anyString())).thenReturn(false);
+
+            // when / then
+            assertThatThrownBy(() -> productService.createProduct(request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Image URL must not be empty");
+        }
+    }
+
+    @Nested
+    class UpdateProductImagesCases {
+
+        @Test
+        void shouldUpdateThumbnail() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Thumb Product", "thumb-product");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null,
+                    "https://example.com/new-thumb.jpg", null, null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.thumbnail()).isEqualTo("https://example.com/new-thumb.jpg");
+            verify(productRepository).save(any(Product.class));
+        }
+
+        @Test
+        void shouldReplaceAllImagesOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Replace Images", "replace-images");
+            product.addImage("https://example.com/old1.jpg", 0);
+            product.addImage("https://example.com/old2.jpg", 1);
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            List<ProductImageRequest> newImages = List.of(
+                    new ProductImageRequest("https://example.com/new1.jpg"),
+                    new ProductImageRequest("https://example.com/new2.jpg"),
+                    new ProductImageRequest("https://example.com/new3.jpg")
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, newImages, null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then — old images soft-deleted, new images active
+            assertThat(response.images()).hasSize(3);
+            assertThat(response.images().get(0).url()).isEqualTo("https://example.com/new1.jpg");
+            assertThat(response.images().get(0).rank()).isZero();
+            assertThat(response.images().get(2).rank()).isEqualTo(2);
+        }
+
+        @Test
+        void shouldClearAllImagesWhenEmptyListProvided() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Clear Images", "clear-images");
+            product.addImage("https://example.com/old.jpg", 0);
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, List.of(), null, null);
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then
+            assertThat(response.images()).isEmpty();
+        }
+
+        @Test
+        void shouldNotModifyImagesWhenNullProvided() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Keep Images", "keep-images");
+            product.addImage("https://example.com/keep.jpg", 0);
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            UpdateProductRequest request = emptyUpdate();
+
+            // when
+            ProductResponse response = productService.updateProduct(productId, request);
+
+            // then — images unchanged
+            assertThat(response.images()).hasSize(1);
+            assertThat(response.images().get(0).url()).isEqualTo("https://example.com/keep.jpg");
+        }
+
+        @Test
+        void shouldRejectBlankImageUrlOnUpdate() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Bad Update", "bad-update");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+            List<ProductImageRequest> images = List.of(
+                    new ProductImageRequest("")
+            );
+            UpdateProductRequest request = new UpdateProductRequest(
+                    null, null, null, null, null,
+                    null, null, null, null, null, null, null, images, null, null);
+
+            // when / then
+            assertThatThrownBy(() -> productService.updateProduct(productId, request))
+                    .isInstanceOf(BusinessRuleException.class)
+                    .hasMessageContaining("Image URL must not be empty");
+        }
+    }
+
+    @Nested
+    class SoftDeleteProductCases {
+
+        @Test
+        void shouldSoftDeleteProduct() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Delete Me", "delete-me");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            productService.softDeleteProduct(productId);
+
+            // then
+            ArgumentCaptor<Product> captor = ArgumentCaptor.forClass(Product.class);
+            verify(productRepository).save(captor.capture());
+            assertThat(captor.getValue().getDeletedAt()).isNotNull();
+        }
+
+        @Test
+        void shouldCascadeSoftDeleteToImages() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Cascade Delete", "cascade-delete");
+            product.addImage("https://example.com/img1.jpg", 0);
+            product.addImage("https://example.com/img2.jpg", 1);
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            productService.softDeleteProduct(productId);
+
+            // then — all images should be soft-deleted
+            ArgumentCaptor<Product> captor = ArgumentCaptor.forClass(Product.class);
+            verify(productRepository).save(captor.capture());
+            Product saved = captor.getValue();
+            for (ProductImage image : saved.getImages()) {
+                assertThat(image.getDeletedAt()).isNotNull();
+            }
+        }
+
+        @Test
+        void shouldThrowWhenProductNotFoundOnDelete() {
+            // given
+            UUID unknownId = UUID.randomUUID();
+            when(productRepository.findById(unknownId)).thenReturn(Optional.empty());
+
+            // when / then
+            assertThatThrownBy(() -> productService.softDeleteProduct(unknownId))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessageContaining(unknownId.toString());
+        }
+
+        @Test
+        void shouldPublishDeleteEventOnSoftDelete() {
+            // given
+            UUID productId = UUID.randomUUID();
+            Product product = Product.create("Event Delete", "event-delete");
+            when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // when
+            productService.softDeleteProduct(productId);
+
+            // then
+            verify(eventPublisher).publishEvent(any(Object.class));
         }
     }
 }

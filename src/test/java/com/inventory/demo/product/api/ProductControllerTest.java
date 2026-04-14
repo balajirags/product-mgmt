@@ -67,8 +67,10 @@ class ProductControllerTest {
                 new BigDecimal("3.0"),
                 Map.of("key", "value"),
                 "EXT-001",
+                null,
                 Instant.now(),
                 Instant.now(),
+                List.of(),
                 List.of(),
                 List.of()
         );
@@ -444,8 +446,8 @@ class ProductControllerTest {
             ProductResponse updatedResponse = new ProductResponse(
                     productId, "Updated Title", "test-product", "DRAFT",
                     null, null, false, true,
-                    null, null, null, null, null, null,
-                    Instant.now(), Instant.now(), List.of(), List.of());
+                    null, null, null, null, null, null, null,
+                    Instant.now(), Instant.now(), List.of(), List.of(), List.of());
             when(productService.updateProduct(eq(productId), any(UpdateProductRequest.class)))
                     .thenReturn(updatedResponse);
 

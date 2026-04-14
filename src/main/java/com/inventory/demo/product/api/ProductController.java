@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -93,6 +94,19 @@ public class ProductController {
         log.info("POST /api/v1/products/{} - Updating product", id);
         ProductResponse response = productService.updateProduct(id, request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Soft-deletes a product and cascades the delete to all images.
+     *
+     * @param id the product UUID
+     * @return HTTP 204 No Content
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
+        log.info("DELETE /api/v1/products/{} - Deleting product", id);
+        productService.softDeleteProduct(id);
+        return ResponseEntity.noContent().build();
     }
 
     /**

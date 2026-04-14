@@ -58,11 +58,17 @@ public record ProductResponse(
         @JsonProperty("external_id")
         String externalId,
 
+        @JsonProperty("thumbnail")
+        String thumbnail,
+
         @JsonProperty("created_at")
         Instant createdAt,
 
         @JsonProperty("updated_at")
         Instant updatedAt,
+
+        @JsonProperty("images")
+        List<ProductImageResponse> images,
 
         @JsonProperty("options")
         List<ProductOptionResponse> options,
@@ -75,6 +81,7 @@ public record ProductResponse(
      * Compact constructor that creates defensive copies of mutable list fields.
      */
     public ProductResponse {
+        images = images != null ? List.copyOf(images) : List.of();
         options = options != null ? List.copyOf(options) : List.of();
         variants = variants != null ? List.copyOf(variants) : List.of();
     }
@@ -86,6 +93,11 @@ public record ProductResponse(
      * @return the response DTO
      */
     public static ProductResponse fromEntity(Product product) {
+        List<ProductImageResponse> imageResponses = product.getImages().stream()
+                .filter(image -> image.getDeletedAt() == null)
+                .map(ProductImageResponse::fromEntity)
+                .toList();
+
         List<ProductOptionResponse> optionResponses = product.getOptions().stream()
                 .filter(option -> option.getDeletedAt() == null)
                 .map(ProductOptionResponse::fromEntity)
@@ -111,8 +123,10 @@ public record ProductResponse(
                 product.getLength(),
                 product.getMetadata(),
                 product.getExternalId(),
+                product.getThumbnail(),
                 product.getCreatedAt(),
                 product.getUpdatedAt(),
+                imageResponses,
                 optionResponses,
                 variantResponses
         );
