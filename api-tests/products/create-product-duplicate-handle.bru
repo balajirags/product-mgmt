@@ -1,0 +1,35 @@
+meta {
+  name: Create Product - Duplicate Handle (409)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "title": "Bruno Test Widget",
+    "handle": "bruno-test-widget"
+  }
+}
+
+assert {
+  res.status: eq 409
+  res.body.error_code: eq DUPLICATE_HANDLE
+}
+
+tests {
+  test("should return 409 Conflict for duplicate handle", function() {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test("should return DUPLICATE_HANDLE error", function() {
+    const body = res.getBody();
+    expect(body.error_code).to.equal("DUPLICATE_HANDLE");
+    expect(body.detail).to.contain("bruno-test-widget");
+  });
+}

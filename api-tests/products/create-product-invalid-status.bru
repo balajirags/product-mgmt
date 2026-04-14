@@ -1,0 +1,33 @@
+meta {
+  name: Create Product - Invalid Status (409)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "title": "Invalid Status Product",
+    "status": "BOGUS"
+  }
+}
+
+assert {
+  res.status: eq 409
+  res.body.error_code: eq INVALID_STATUS
+}
+
+tests {
+  test("should return 409 Conflict", function() {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test("should return INVALID_STATUS error", function() {
+    expect(res.getBody().error_code).to.equal("INVALID_STATUS");
+  });
+}

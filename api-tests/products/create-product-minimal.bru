@@ -1,0 +1,51 @@
+meta {
+  name: Create Product - Title Only (Minimal)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "title": "Minimal Product"
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.title: eq Minimal Product
+  res.body.handle: eq minimal-product
+  res.body.status: eq DRAFT
+  res.body.is_giftcard: eq false
+  res.body.discountable: eq true
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("should default to DRAFT status", function() {
+    expect(res.getBody().status).to.equal("DRAFT");
+  });
+
+  test("should have empty images array", function() {
+    const body = res.getBody();
+    expect(body.images).to.be.an("array").that.is.empty;
+  });
+
+  test("should have empty options array", function() {
+    const body = res.getBody();
+    expect(body.options).to.be.an("array").that.is.empty;
+  });
+
+  test("should have empty variants array", function() {
+    const body = res.getBody();
+    expect(body.variants).to.be.an("array").that.is.empty;
+  });
+}

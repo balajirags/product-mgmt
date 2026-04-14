@@ -1,0 +1,28 @@
+meta {
+  name: Create Product - Blank Title (400)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "title": "   "
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.error_code: eq VALIDATION_ERROR
+}
+
+tests {
+  test("should return 400 for blank title", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

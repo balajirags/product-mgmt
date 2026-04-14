@@ -1,0 +1,26 @@
+meta {
+  name: Get Product by ID - Invalid UUID (400)
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/not-a-uuid
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 400
+  res.body.error_code: eq INVALID_PARAMETER
+}
+
+tests {
+  test("should return 400 for invalid UUID", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test("should return INVALID_PARAMETER error", function() {
+    expect(res.getBody().error_code).to.equal("INVALID_PARAMETER");
+  });
+}

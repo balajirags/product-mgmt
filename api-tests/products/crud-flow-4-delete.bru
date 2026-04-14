@@ -1,0 +1,21 @@
+meta {
+  name: CRUD Flow - Step 4 - Delete Product
+  type: http
+  seq: 23
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/products/{{productId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 204
+}
+
+tests {
+  test("should return 204 No Content", function() {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

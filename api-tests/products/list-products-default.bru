@@ -1,0 +1,40 @@
+meta {
+  name: List Products - Default Pagination
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.content: isDefined
+  res.body.page: isDefined
+  res.body.size: isDefined
+  res.body.total_elements: isDefined
+  res.body.total_pages: isDefined
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("should return paged response structure", function() {
+    const body = res.getBody();
+    expect(body.content).to.be.an("array");
+    expect(body.page).to.be.a("number");
+    expect(body.size).to.be.a("number");
+    expect(body.total_elements).to.be.a("number");
+    expect(body.total_pages).to.be.a("number");
+  });
+
+  test("should contain previously created products", function() {
+    const body = res.getBody();
+    expect(body.total_elements).to.be.at.least(1);
+  });
+}
