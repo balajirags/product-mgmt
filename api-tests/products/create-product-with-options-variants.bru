@@ -1,0 +1,67 @@
+meta {
+  name: Create Product - With Options and Variants
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "title": "T-Shirt With Options",
+    "status": "PUBLISHED",
+    "options": [
+      {
+        "title": "Size",
+        "values": ["S", "M", "L"]
+      },
+      {
+        "title": "Color",
+        "values": ["Red", "Blue"]
+      }
+    ],
+    "variants": [
+      {
+        "title": "Small Red",
+        "sku": "TSHIRT-S-RED",
+        "option_values": {"Size": "S", "Color": "Red"}
+      },
+      {
+        "title": "Medium Blue",
+        "sku": "TSHIRT-M-BLUE",
+        "option_values": {"Size": "M", "Color": "Blue"}
+      }
+    ]
+  }
+}
+
+assert {
+  res.status: eq 201
+  res.body.title: eq T-Shirt With Options
+  res.body.status: eq PUBLISHED
+}
+
+tests {
+  test("should return 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("should return 2 options", function() {
+    const body = res.getBody();
+    expect(body.options).to.be.an("array").with.lengthOf(2);
+    expect(body.options[0].title).to.equal("Size");
+    expect(body.options[0].values).to.have.lengthOf(3);
+    expect(body.options[1].title).to.equal("Color");
+  });
+
+  test("should return 2 variants", function() {
+    const body = res.getBody();
+    expect(body.variants).to.be.an("array").with.lengthOf(2);
+    expect(body.variants[0].sku).to.equal("TSHIRT-S-RED");
+    expect(body.variants[1].sku).to.equal("TSHIRT-M-BLUE");
+  });
+}
