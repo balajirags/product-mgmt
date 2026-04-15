@@ -1,8 +1,8 @@
 ---
 task: Build a React+Vite product management UI from the product-api.yml spec
 pipeline: guild-orchestrator → product-owner → ba → developer → reviewer → deploy-nonprod → qa-nonprod
-Current: developer
-Last Updated: 2026-04-15T16:00:00Z
+Current: done
+Last Updated: 2026-04-15T17:35:00Z
 ---
 # ── Resolved from guild-input.md + intake ────────────────────────────────
 Stack: TypeScript + React + Vite + none
@@ -60,6 +60,10 @@ nfr-priorities: standard
 - 2026-04-15T14:15:00Z  BACKLOG_GROOMED  stories=8  acs_written=52  schema_derived=no(frontend-spa)  agent=ba
 - 2026-04-15T15:30:00Z  IMPLEMENTATION_COMPLETE  files_created=26  tests=17  build=GREEN  branch=feature/product-management-ui  agent=developer
 - 2026-04-15T16:00:00Z  REVIEW_REQUEST_CHANGES  p1=0  p2=2  p3=2  p4=2  cycles=1  agent=reviewer
+- 2026-04-15T17:00:00Z  REVIEW_FIX_COMPLETE  tests=90  coverage=lines90.37/branches86.71  build=GREEN  agent=developer
+- 2026-04-15T17:05:00Z  REVIEW_SKIPPED  reason=user-skip  verdict=APPROVE  agent=guild-orchestrator
+- 2026-04-15T17:20:00Z  DEPLOY_COMPLETE  env=nonprod  image=demo-product-ui:562527c  endpoint=http://localhost:8081
+- 2026-04-15T17:35:00Z  QA_COMPLETE  env=nonprod  http_smoke=8/8  playwright=BLOCKED(vitest-conflict)  functional_e2e=BLOCKED(backend-offline)
 
 ## Technical Design
 (written by Architect agent)
@@ -255,7 +259,7 @@ secrets_detected: []
 
 ## Context Recovery
 Sessions:
-  - ended: 2026-04-15T16:48:53Z
+  - ended: 2026-04-15T17:21:36Z
     agent: 
     ended_reason: session_close
     recovery: Run 'guild resume' to continue from last checkpoint
@@ -271,10 +275,42 @@ Sessions:
 - Intake fields: domain=product management/inventory, auth=none, data-sensitivity=internal-only, external-integrations=none, nfr-priorities=standard
 - Stack maturity: ga
 
+### qa-nonprod
+- Status: complete
+- Mode: post-deploy-nonprod
+- Scope: HTTP smoke (8 checks) + Playwright smoke (blocked)
+- Target: http://localhost:8081
+- E2E: PARTIAL PASS — HTTP smoke PASS, browser E2E blocked (see below)
+- Bruno: SKIPPED (api-e2e: none)
+- Playwright: BLOCKED — vitest 4.x + @playwright/test global `expect` conflict in same package
+  Fix: isolate E2E tests in a separate package.json, or downgrade vitest to 2.x
+- Backend offline: functional E2E (create/edit/delete product) NOT run — backend at :8080 must be started first
+- Bugs flagged: 0 (no production bugs found in accessible paths)
+- HTTP Smoke Results:
+  ✅ GET /health/ready → 200 OK
+  ✅ GET / → index.html with #root div
+  ✅ GET /products → SPA fallback 200
+  ✅ GET /products/new → SPA fallback 200
+  ✅ GET /products/batch → SPA fallback 200
+  ✅ GET /some/unknown/path → SPA fallback 200
+  ✅ JS bundle served correctly
+  ✅ CSS bundle served correctly
+
+### deploy-nonprod
+- Status: complete
+- Env: nonprod (local Docker simulation)
+- Image: demo-product-ui:562527c
+- Run mode: docker (nginx:alpine serving static dist/)
+- Replicas: 1
+- Rollout: SUCCESS
+- frontend_url: http://localhost:8081
+- api_endpoint: http://localhost:8080/api/v1 (backend must be running separately)
+- qa_auth: { type: none }
+
 ### reviewer
 - Status: complete
 - PR: feature/product-management-ui (local review — no PR number)
-- Verdict: REQUEST_CHANGES
+- Verdict: APPROVE (second pass skipped by user)
 - P1 issues: 0
 - P2 issues: 2 (coverage threshold fails at 66.66% branch; thresholds 80/75 below guild requirement 90/85)
 - P3 issues: 2 (dead code in BatchPage.validate; vi.clearAllMocks fragility)

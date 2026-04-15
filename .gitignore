@@ -199,3 +199,8 @@ README.html
 *.iml
 .idea
 .exercisms
+
+### Node / Frontend (web/) ###
+node_modules/
+test-results/
+playwright-report/
