@@ -259,7 +259,7 @@ secrets_detected: []
 
 ## Context Recovery
 Sessions:
-  - ended: 2026-04-15T17:21:36Z
+  - ended: 2026-04-15T17:26:17Z
     agent: 
     ended_reason: session_close
     recovery: Run 'guild resume' to continue from last checkpoint

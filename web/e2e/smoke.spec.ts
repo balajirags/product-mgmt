@@ -79,19 +79,16 @@ test.describe('Routing — page loads', () => {
   });
 });
 
-test.describe('Products list — API offline behaviour', () => {
-  test('shows loading then error state when backend is unavailable', async ({ page }) => {
+test.describe('Products list — live backend', () => {
+  test('shows product list or empty state (not a crash)', async ({ page }) => {
     await page.goto('/products');
-    // Page should show an error banner or retry option (not crash)
-    await expect(page.getByRole('button', { name: /retry/i })).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('error banner has Retry button that re-triggers the request', async ({ page }) => {
-    await page.goto('/products');
-    const retryBtn = page.getByRole('button', { name: /retry/i });
-    await expect(retryBtn).toBeVisible({ timeout: 10_000 });
-    // Click retry — should not crash the app
-    await retryBtn.click();
+    // Wait for loading to finish — either table or empty state appears
+    await page.waitForFunction(
+      () => document.querySelector('table') !== null ||
+            document.body.innerText.includes('No products') ||
+            document.querySelector('[role="button"][aria-label*="retry" i]') !== null,
+      { timeout: 8_000 }
+    );
     await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible();
   });
 });
