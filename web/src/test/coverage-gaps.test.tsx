@@ -34,7 +34,7 @@ describe('api.ts — coverage gaps', () => {
   it('listProducts with page param — covers page !== undefined branch (line 68)', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true, status: 200,
-      json: () => Promise.resolve({ content: [], page: 1, size: 20, totalElements: 0, totalPages: 0 }),
+      json: () => Promise.resolve({ content: [], page: 1, size: 20, total_elements: 0, total_pages: 0 }),
     });
     const { listProducts } = await import('@/lib/api');
     await listProducts({ page: 1 });
@@ -61,8 +61,8 @@ const fullProduct = {
   title: 'Deletable Product', handle: 'del', status: 'DRAFT' as const,
   description: null, subtitle: null, giftcard: false, discountable: true,
   weight: null, height: null, width: null, length: null,
-  metadata: null, externalId: null, thumbnail: null,
-  createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z',
+  metadata: null, external_id: null, thumbnail: null,
+  created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z',
   images: [], options: [], variants: [],
 };
 
@@ -119,19 +119,19 @@ function wrapList({ children }: { children: React.ReactNode }) {
 
 const product = {
   id: '1', title: 'Hover Test Product', status: 'DRAFT' as const,
-  thumbnail: null, updatedAt: '2026-01-01T00:00:00Z',
+  thumbnail: null, updated_at: '2026-01-01T00:00:00Z',
   images: [], options: [], variants: [],
   handle: 'h', giftcard: false, discountable: true,
-  createdAt: '2026-01-01T00:00:00Z',
+  created_at: '2026-01-01T00:00:00Z',
   description: null, subtitle: null, weight: null,
-  height: null, width: null, length: null, metadata: null, externalId: null,
+  height: null, width: null, length: null, metadata: null, external_id: null,
 };
 
 describe('ProductListPage — row hover handlers (lines 112–115)', () => {
   it('fires onMouseEnter and onMouseLeave on table row without errors', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [product], page: 0, size: 20, totalElements: 1, totalPages: 1 },
+      data: { content: [product], page: 0, size: 20, total_elements: 1, total_pages: 1 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 

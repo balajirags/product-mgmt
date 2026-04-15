@@ -37,12 +37,12 @@ function makeProduct(overrides = {}) {
     title: 'Test Product',
     status: 'DRAFT' as const,
     thumbnail: null,
-    updatedAt: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
     images: [], options: [], variants: [],
     handle: 'test', giftcard: false, discountable: true,
-    createdAt: '2026-01-01T00:00:00Z',
+    created_at: '2026-01-01T00:00:00Z',
     description: null, subtitle: null, weight: null,
-    height: null, width: null, length: null, metadata: null, externalId: null,
+    height: null, width: null, length: null, metadata: null, external_id: null,
     ...overrides,
   };
 }
@@ -52,7 +52,7 @@ function mockWithProducts(overrides = {}) {
     isLoading: false, isError: false, error: null,
     data: {
       content: [makeProduct(overrides)],
-      page: 0, size: 20, totalElements: 1, totalPages: 1,
+      page: 0, size: 20, total_elements: 1, total_pages: 1,
     },
     refetch: noop,
   } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
@@ -76,7 +76,7 @@ describe('ProductListPage — extended coverage', () => {
   it('changing status filter resets to page 0', async () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 },
+      data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
@@ -90,7 +90,7 @@ describe('ProductListPage — extended coverage', () => {
   it('changing sort option updates sort state', async () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 },
+      data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
@@ -104,7 +104,7 @@ describe('ProductListPage — extended coverage', () => {
   it('next page button advances page', async () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [makeProduct()], page: 0, size: 20, totalElements: 50, totalPages: 3 },
+      data: { content: [makeProduct()], page: 0, size: 20, total_elements: 50, total_pages: 3 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
@@ -118,7 +118,7 @@ describe('ProductListPage — extended coverage', () => {
     // Start on page 2 by clicking next twice
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [makeProduct()], page: 0, size: 20, totalElements: 60, totalPages: 3 },
+      data: { content: [makeProduct()], page: 0, size: 20, total_elements: 60, total_pages: 3 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
@@ -132,7 +132,7 @@ describe('ProductListPage — extended coverage', () => {
   it('next page button is disabled on last page', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [makeProduct()], page: 0, size: 20, totalElements: 1, totalPages: 1 },
+      data: { content: [makeProduct()], page: 0, size: 20, total_elements: 1, total_pages: 1 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
@@ -144,7 +144,7 @@ describe('ProductListPage — extended coverage', () => {
   it('Create product header button is rendered', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 },
+      data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 

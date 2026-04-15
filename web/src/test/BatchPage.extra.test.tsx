@@ -153,7 +153,7 @@ describe('BatchPage — api.ts extra branches', () => {
   it('listProducts with size and sort params', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true, status: 200,
-      json: () => Promise.resolve({ content: [], page: 0, size: 5, totalElements: 0, totalPages: 0 }),
+      json: () => Promise.resolve({ content: [], page: 0, size: 5, total_elements: 0, total_pages: 0 }),
     });
     vi.stubGlobal('fetch', mockFetch);
 

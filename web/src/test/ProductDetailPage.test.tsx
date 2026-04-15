@@ -44,13 +44,13 @@ const fullProduct = {
   giftcard: false, discountable: true,
   weight: 0.35, height: 12.0, width: 8.0, length: 30.0,
   metadata: { brand: 'Acme' },
-  externalId: 'EXT-1',
+  external_id: 'EXT-1',
   thumbnail: null,
-  createdAt: '2026-01-01T00:00:00Z',
-  updatedAt: '2026-01-02T00:00:00Z',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-02T00:00:00Z',
   images: [{ url: 'https://cdn.example.com/img.jpg', rank: 0 }],
-  options: [{ id: 'opt1', title: 'Size', values: ['S', 'M'], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }],
-  variants: [{ id: 'v1', title: 'S', sku: 'SNK-S', barcode: null, weight: null, height: null, width: null, length: null, manageInventory: true, allowBackorder: false, optionValues: { Size: 'S' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }],
+  options: [{ id: 'opt1', title: 'Size', values: ['S', 'M'], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
+  variants: [{ id: 'v1', title: 'S', sku: 'SNK-S', barcode: null, weight: null, height: null, width: null, length: null, manage_inventory: true, allow_backorder: false, option_values: { Size: 'S' }, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
 };
 
 describe('ProductDetailPage', () => {

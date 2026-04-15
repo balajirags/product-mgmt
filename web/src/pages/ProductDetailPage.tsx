@@ -103,12 +103,12 @@ export function ProductDetailPage() {
               ['Handle', product.handle],
               ['Subtitle', product.subtitle],
               ['Description', product.description],
-              ['External ID', product.externalId],
+              ['External ID', product.external_id],
               ['Thumbnail', product.thumbnail],
-              ['Giftcard', String(product.giftcard)],
+              ['Giftcard', String(product.is_giftcard)],
               ['Discountable', String(product.discountable)],
-              ['Created', new Date(product.createdAt).toLocaleString()],
-              ['Updated', new Date(product.updatedAt).toLocaleString()],
+              ['Created', new Date(product.created_at).toLocaleString()],
+              ['Updated', new Date(product.updated_at).toLocaleString()],
             ].map(([label, value]) =>
               value ? (
                 <tr key={label} style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -213,8 +213,8 @@ export function ProductDetailPage() {
                   <td style={{ padding: '0.4rem' }}>{v.title}</td>
                   <td style={{ padding: '0.4rem', color: '#6b7280' }}>{v.sku ?? '—'}</td>
                   <td style={{ padding: '0.4rem', color: '#6b7280' }}>{v.barcode ?? '—'}</td>
-                  <td style={{ padding: '0.4rem' }}>{v.manageInventory ? 'Yes' : 'No'}</td>
-                  <td style={{ padding: '0.4rem' }}>{v.allowBackorder ? 'Yes' : 'No'}</td>
+                  <td style={{ padding: '0.4rem' }}>{v.manage_inventory ? 'Yes' : 'No'}</td>
+                  <td style={{ padding: '0.4rem' }}>{v.allow_backorder ? 'Yes' : 'No'}</td>
                 </tr>
               ))}
             </tbody>

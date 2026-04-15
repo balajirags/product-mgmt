@@ -53,7 +53,7 @@ describe('ProductListPage', () => {
   it('shows empty state with CTA when no products', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 },
+      data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
@@ -67,9 +67,9 @@ describe('ProductListPage', () => {
       isLoading: false, isError: false, error: null,
       data: {
         content: [
-          { id: '1', title: 'Unique Sneaker XYZ', status: 'PUBLISHED', thumbnail: null, updatedAt: '2026-01-01T00:00:00Z', images: [], options: [], variants: [], handle: 'sneaker', giftcard: false, discountable: true, createdAt: '2026-01-01T00:00:00Z', description: null, subtitle: null, weight: null, height: null, width: null, length: null, metadata: null, externalId: null },
+          { id: '1', title: 'Unique Sneaker XYZ', status: 'PUBLISHED', thumbnail: null, updated_at: '2026-01-01T00:00:00Z', images: [], options: [], variants: [], handle: 'sneaker', giftcard: false, discountable: true, created_at: '2026-01-01T00:00:00Z', description: null, subtitle: null, weight: null, height: null, width: null, length: null, metadata: null, external_id: null },
         ],
-        page: 0, size: 20, totalElements: 1, totalPages: 1,
+        page: 0, size: 20, total_elements: 1, total_pages: 1,
       },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
@@ -81,12 +81,12 @@ describe('ProductListPage', () => {
     expect(screen.getAllByText('PUBLISHED').length).toBeGreaterThan(0);
   });
 
-  it('shows pagination when totalPages > 1', () => {
+  it('shows pagination when total_pages > 1', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
       data: {
-        content: [{ id: '1', title: 'A', status: 'DRAFT', thumbnail: null, updatedAt: '2026-01-01T00:00:00Z', images: [], options: [], variants: [], handle: 'a', giftcard: false, discountable: true, createdAt: '2026-01-01T00:00:00Z', description: null, subtitle: null, weight: null, height: null, width: null, length: null, metadata: null, externalId: null }],
-        page: 0, size: 20, totalElements: 50, totalPages: 3,
+        content: [{ id: '1', title: 'A', status: 'DRAFT', thumbnail: null, updated_at: '2026-01-01T00:00:00Z', images: [], options: [], variants: [], handle: 'a', giftcard: false, discountable: true, created_at: '2026-01-01T00:00:00Z', description: null, subtitle: null, weight: null, height: null, width: null, length: null, metadata: null, external_id: null }],
+        page: 0, size: 20, total_elements: 50, total_pages: 3,
       },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
@@ -99,7 +99,7 @@ describe('ProductListPage', () => {
   it('previous page button is disabled on page 0', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [], page: 0, size: 20, totalElements: 50, totalPages: 3 },
+      data: { content: [], page: 0, size: 20, total_elements: 50, total_pages: 3 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
@@ -123,7 +123,7 @@ describe('ProductListPage', () => {
   it('status filter select is rendered with all statuses', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 },
+      data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 

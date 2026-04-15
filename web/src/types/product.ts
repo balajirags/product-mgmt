@@ -23,9 +23,9 @@ export interface ProductVariantRequest {
   height?: number | null;
   width?: number | null;
   length?: number | null;
-  manageInventory?: boolean;
-  allowBackorder?: boolean;
-  optionValues?: Record<string, string> | null;
+  manage_inventory?: boolean;
+  allow_backorder?: boolean;
+  option_values?: Record<string, string> | null;
 }
 
 export interface CreateProductRequest {
@@ -39,7 +39,7 @@ export interface CreateProductRequest {
   width?: number | null;
   length?: number | null;
   metadata?: Record<string, unknown> | null;
-  externalId?: string | null;
+  external_id?: string | null;
   thumbnail?: string | null;
   images?: ProductImageRequest[] | null;
   options?: ProductOptionRequest[] | null;
@@ -57,7 +57,7 @@ export interface UpdateProductRequest {
   width?: number | null;
   length?: number | null;
   metadata?: Record<string, unknown> | null;
-  externalId?: string | null;
+  external_id?: string | null;
   thumbnail?: string | null;
   images?: ProductImageRequest[] | null;
   options?: ProductOptionRequest[] | null;
@@ -86,8 +86,8 @@ export interface ProductOptionResponse {
   id: string;
   title: string;
   values: string[];
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProductVariantResponse {
@@ -99,11 +99,11 @@ export interface ProductVariantResponse {
   height: number | null;
   width: number | null;
   length: number | null;
-  manageInventory: boolean;
-  allowBackorder: boolean;
-  optionValues: Record<string, string>;
-  createdAt: string;
-  updatedAt: string;
+  manage_inventory: boolean;
+  allow_backorder: boolean;
+  option_values: Record<string, string>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProductResponse {
@@ -113,17 +113,17 @@ export interface ProductResponse {
   status: ProductStatus;
   description: string | null;
   subtitle: string | null;
-  giftcard: boolean;
+  is_giftcard: boolean;
   discountable: boolean;
   weight: number | null;
   height: number | null;
   width: number | null;
   length: number | null;
   metadata: Record<string, unknown> | null;
-  externalId: string | null;
+  external_id: string | null;
   thumbnail: string | null;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
   images: ProductImageResponse[];
   options: ProductOptionResponse[];
   variants: ProductVariantResponse[];
@@ -133,8 +133,8 @@ export interface PagedProductResponse {
   content: ProductResponse[];
   page: number;
   size: number;
-  totalElements: number;
-  totalPages: number;
+  total_elements: number;
+  total_pages: number;
 }
 
 export interface BatchItemResult {

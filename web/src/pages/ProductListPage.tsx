@@ -126,7 +126,7 @@ export function ProductListPage() {
                   <StatusBadge status={p.status} />
                 </td>
                 <td style={{ padding: '0.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
-                  {new Date(p.updatedAt).toLocaleDateString()}
+                  {new Date(p.updated_at).toLocaleDateString()}
                 </td>
               </tr>
             ))}
@@ -135,15 +135,15 @@ export function ProductListPage() {
       )}
 
       {/* Pagination */}
-      {data && data.totalPages > 1 && (
+      {data && data.total_pages > 1 && (
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', alignItems: 'center' }}>
           <button disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
             Previous
           </button>
           <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-            Page {page + 1} of {data.totalPages} ({data.totalElements} products)
+            Page {page + 1} of {data.total_pages} ({data.total_elements} products)
           </span>
-          <button disabled={page >= data.totalPages - 1} onClick={() => setPage((p) => p + 1)}>
+          <button disabled={page >= data.total_pages - 1} onClick={() => setPage((p) => p + 1)}>
             Next
           </button>
         </div>

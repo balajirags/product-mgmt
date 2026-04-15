@@ -77,7 +77,7 @@ export function ProductFormPage({ mode }: Props) {
       width: existing.width !== null ? String(existing.width) : '',
       length: existing.length !== null ? String(existing.length) : '',
       thumbnail: existing.thumbnail ?? '',
-      externalId: existing.externalId ?? '',
+      externalId: existing.external_id ?? '',
       metadata: existing.metadata ? JSON.stringify(existing.metadata, null, 2) : '',
       images: existing.images.length > 0
         ? [...existing.images].sort((a, b) => a.rank - b.rank).map((i) => i.url)
@@ -85,7 +85,7 @@ export function ProductFormPage({ mode }: Props) {
       options: existing.options.map((o) => ({ title: o.title, values: o.values.join(', ') })),
       variants: existing.variants.map((v) => ({
         title: v.title, sku: v.sku ?? '', barcode: v.barcode ?? '',
-        manageInventory: v.manageInventory, allowBackorder: v.allowBackorder,
+        manageInventory: v.manage_inventory, allowBackorder: v.allow_backorder,
       })),
     });
   }, [existing]);
@@ -131,8 +131,8 @@ export function ProductFormPage({ mode }: Props) {
       title: v.title || null,
       sku: v.sku || null,
       barcode: v.barcode || null,
-      manageInventory: v.manageInventory,
-      allowBackorder: v.allowBackorder,
+      manage_inventory: v.manageInventory,
+      allow_backorder: v.allowBackorder,
     }));
 
     let metadata: Record<string, unknown> | null = null;
@@ -151,7 +151,7 @@ export function ProductFormPage({ mode }: Props) {
       width: parseDecimal(form.width),
       length: parseDecimal(form.length),
       thumbnail: form.thumbnail.trim() || null,
-      externalId: form.externalId.trim() || null,
+      external_id: form.externalId.trim() || null,
       metadata,
       images: images.length > 0 ? images : null,
       options: options.length > 0 ? options : null,

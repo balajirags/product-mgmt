@@ -18,11 +18,11 @@ describe('API client', () => {
   beforeEach(() => { vi.resetAllMocks(); });
 
   it('listProducts — returns PagedProductResponse', async () => {
-    const payload = { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 };
+    const payload = { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 };
     mockFetch.mockResolvedValueOnce(makeResponse(payload));
     const { listProducts } = await import('@/lib/api');
     const result = await listProducts();
-    expect(result.totalElements).toBe(0);
+    expect(result.total_elements).toBe(0);
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/products'),
       expect.objectContaining({ headers: expect.objectContaining({ 'Content-Type': 'application/json' }) }),
@@ -30,7 +30,7 @@ describe('API client', () => {
   });
 
   it('listProducts — passes status filter', async () => {
-    mockFetch.mockResolvedValueOnce(makeResponse({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }));
+    mockFetch.mockResolvedValueOnce(makeResponse({ content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 }));
     const { listProducts } = await import('@/lib/api');
     await listProducts({ status: 'PUBLISHED' });
     const url = mockFetch.mock.calls[0][0] as string;
