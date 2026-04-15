@@ -149,6 +149,6 @@ describe('ProductListPage — extended coverage', () => {
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
     render(<ProductListPage />, { wrapper });
-    expect(screen.getByRole('link', { name: /\+ create product/i })).toBeDefined();
+    expect(screen.getByRole('link', { name: /new product/i })).toBeDefined();
   });
 });

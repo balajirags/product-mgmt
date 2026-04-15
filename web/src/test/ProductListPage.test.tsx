@@ -34,8 +34,9 @@ describe('ProductListPage', () => {
       isLoading: true, isError: false, error: null, data: undefined, refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 
-    render(<ProductListPage />, { wrapper });
-    expect(screen.getByText(/loading products/i)).toBeDefined();
+    const { container } = render(<ProductListPage />, { wrapper });
+    // Loading shows skeleton (animate-pulse)
+    expect(container.querySelector('.animate-pulse')).not.toBeNull();
   });
 
   it('shows error banner with retry on API failure', () => {
@@ -99,7 +100,10 @@ describe('ProductListPage', () => {
   it('previous page button is disabled on page 0', () => {
     vi.mocked(hooks.useProducts).mockReturnValue({
       isLoading: false, isError: false, error: null,
-      data: { content: [], page: 0, size: 20, total_elements: 50, total_pages: 3 },
+      data: {
+        content: [{ id: '1', title: 'A', status: 'DRAFT' as const, thumbnail: null, updated_at: '2026-01-01T00:00:00Z', images: [], options: [], variants: [], handle: 'a', is_giftcard: false, discountable: true, created_at: '2026-01-01T00:00:00Z', description: null, subtitle: null, weight: null, height: null, width: null, length: null, metadata: null, external_id: null }],
+        page: 0, size: 20, total_elements: 50, total_pages: 3,
+      },
       refetch: noop,
     } as unknown as unknown as ReturnType<typeof hooks.useProducts>);
 

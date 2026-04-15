@@ -66,8 +66,8 @@ describe('ProductDetailPage', () => {
     vi.mocked(hooks.useProduct).mockReturnValue({ isLoading: true, isError: false, error: null, data: undefined, refetch: noop } as unknown as unknown as ReturnType<typeof hooks.useProduct>);
     vi.mocked(hooks.useDeleteProduct).mockReturnValue(baseMutationResult as unknown as ReturnType<typeof hooks.useDeleteProduct>);
 
-    renderAtPath('/products/00000000-0000-0000-0000-000000000001');
-    expect(screen.getByText(/loading/i)).toBeDefined();
+    const { container } = renderAtPath('/products/00000000-0000-0000-0000-000000000001');
+    expect(container.querySelector('.animate-pulse')).not.toBeNull();
   });
 
   it('shows "Product not found" on 404', () => {
@@ -93,7 +93,7 @@ describe('ProductDetailPage', () => {
     vi.mocked(hooks.useDeleteProduct).mockReturnValue(baseMutationResult as unknown as ReturnType<typeof hooks.useDeleteProduct>);
 
     renderAtPath('/products/00000000-0000-0000-0000-000000000001');
-    expect(screen.getByText('Classic Sneaker')).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: 'Classic Sneaker' })).toBeDefined();
     expect(screen.getByText('PUBLISHED')).toBeDefined();
     expect(screen.getByText(/classic-sneaker/i)).toBeDefined();
     expect(screen.getByText('Size')).toBeDefined();

@@ -1,11 +1,24 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useProduct, useDeleteProduct } from '@/hooks/useProducts';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { DeleteDialog } from '@/components/ui/DeleteDialog';
+import { StatusBadge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Dialog } from '@/components/ui/Dialog';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { ApiError } from '@/types/product';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+  if (!value && value !== 0) return null;
+  return (
+    <div className="flex items-start py-3 border-b border-slate-50 last:border-0">
+      <dt className="w-36 flex-shrink-0 text-sm text-slate-500">{label}</dt>
+      <dd className="text-sm text-slate-900 break-words min-w-0">{value}</dd>
+    </div>
+  );
+}
 
 export function ProductDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
@@ -19,32 +32,45 @@ export function ProductDetailPage() {
 
   if (!isValidUuid) {
     return (
-      <div style={{ maxWidth: 800, margin: '2rem auto', padding: '0 1rem' }}>
-        <p style={{ color: '#dc2626' }}>Invalid product ID.</p>
-        <Link to="/products">Back to products</Link>
+      <div className="text-center py-16">
+        <p className="text-slate-600 mb-4">Invalid product ID.</p>
+        <Link to="/products"><Button variant="secondary" size="sm">Back to products</Button></Link>
       </div>
     );
   }
 
   if (isLoading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading…</div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+        <Card className="p-6 space-y-3">
+          {[80, 64, 72, 56].map((w) => <Skeleton key={w} className={`h-4 w-${w}`} />)}
+        </Card>
+      </div>
+    );
   }
 
   if (isError) {
     const is404 = error instanceof ApiError && error.status === 404;
     return (
-      <div style={{ maxWidth: 800, margin: '2rem auto', padding: '0 1rem' }}>
+      <div className="text-center py-16 space-y-4">
         {is404 ? (
           <>
-            <p>Product not found.</p>
-            <Link to="/products">Back to products</Link>
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto">
+              <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+              </svg>
+            </div>
+            <p className="text-base font-medium text-slate-900">Product not found</p>
+            <Link to="/products"><Button variant="secondary" size="sm">Back to products</Button></Link>
           </>
         ) : (
           <>
-            <p style={{ color: '#dc2626' }}>
-              {error instanceof ApiError ? error.message : 'Failed to load product.'}
-            </p>
-            <button onClick={() => refetch()}>Retry</button>
+            <p className="text-sm text-red-600">{error instanceof ApiError ? error.message : 'Failed to load product.'}</p>
+            <Button variant="secondary" size="sm" onClick={() => refetch()}>Retry</Button>
           </>
         )}
       </div>
@@ -64,171 +90,192 @@ export function ProductDetailPage() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '2rem 1rem' }}>
+    <div className="space-y-6">
       {/* Breadcrumb */}
-      <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-        <Link to="/products">Products</Link> / {product.title}
-      </div>
+      <nav className="flex items-center gap-2 text-sm text-slate-500">
+        <Link to="/products" className="hover:text-violet-600 transition-colors">Products</Link>
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+        <span className="text-slate-900 truncate max-w-xs">{product.title}</span>
+      </nav>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ margin: '0 0 0.5rem 0' }}>{product.title}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          {product.thumbnail && (
+            <img src={product.thumbnail} alt={product.title} className="w-12 h-12 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+          )}
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold text-slate-900 truncate">{product.title}</h1>
+            <p className="text-sm text-slate-500 mt-0.5">{product.handle}</p>
+          </div>
           <StatusBadge status={product.status} />
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Link to={`/products/${id}/edit`}>
-            <button>Edit</button>
+            <Button variant="secondary" size="sm">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+              </svg>
+              Edit
+            </Button>
           </Link>
-          <button
-            onClick={() => setShowDelete(true)}
-            style={{ background: '#dc2626', color: '#fff' }}
-          >
+          <Button variant="danger" size="sm" onClick={() => setShowDelete(true)}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916" />
+            </svg>
             Delete
-          </button>
+          </Button>
         </div>
       </div>
 
       {deleteError && (
-        <div style={{ padding: '0.75rem', background: '#fee2e2', borderRadius: 4, marginBottom: '1rem' }}>
-          {deleteError}
-        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</div>
       )}
 
-      {/* Core fields */}
-      <section style={{ marginBottom: '1.5rem' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <tbody>
-            {[
-              ['Handle', product.handle],
-              ['Subtitle', product.subtitle],
-              ['Description', product.description],
-              ['External ID', product.external_id],
-              ['Thumbnail', product.thumbnail],
-              ['Giftcard', String(product.is_giftcard)],
-              ['Discountable', String(product.discountable)],
-              ['Created', new Date(product.created_at).toLocaleString()],
-              ['Updated', new Date(product.updated_at).toLocaleString()],
-            ].map(([label, value]) =>
-              value ? (
-                <tr key={label} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '0.4rem 0.75rem 0.4rem 0', color: '#6b7280', width: 140, fontWeight: 500, fontSize: '0.875rem' }}>{label}</td>
-                  <td style={{ padding: '0.4rem 0', fontSize: '0.875rem', wordBreak: 'break-word' }}>{value}</td>
-                </tr>
-              ) : null,
-            )}
-          </tbody>
-        </table>
-      </section>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Core fields */}
+          <Card className="p-6">
+            <h2 className="text-sm font-semibold text-slate-900 mb-4">Details</h2>
+            <dl>
+              <DetailRow label="Description" value={product.description} />
+              <DetailRow label="Subtitle" value={product.subtitle} />
+              <DetailRow label="External ID" value={product.external_id} />
+              <DetailRow label="Created" value={new Date(product.created_at).toLocaleString()} />
+              <DetailRow label="Updated" value={new Date(product.updated_at).toLocaleString()} />
+            </dl>
+          </Card>
 
-      {/* Dimensions */}
-      {(product.weight ?? product.height ?? product.width ?? product.length) !== null && (
-        <section style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Dimensions</h2>
-          <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
-            {product.weight !== null && <span>Weight: {product.weight}</span>}
-            {product.height !== null && <span>H: {product.height}</span>}
-            {product.width !== null && <span>W: {product.width}</span>}
-            {product.length !== null && <span>L: {product.length}</span>}
-          </div>
-        </section>
-      )}
-
-      {/* Metadata */}
-      {product.metadata && Object.keys(product.metadata).length > 0 && (
-        <section style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Metadata</h2>
-          <table style={{ borderCollapse: 'collapse' }}>
-            <tbody>
-              {Object.entries(product.metadata).map(([k, v]) => (
-                <tr key={k} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '0.25rem 1rem 0.25rem 0', color: '#6b7280', fontSize: '0.875rem' }}>{k}</td>
-                  <td style={{ padding: '0.25rem 0', fontSize: '0.875rem' }}>{String(v)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {/* Images */}
-      <section style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Images</h2>
-        {product.images.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>No images.</p>
-        ) : (
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {product.images
-              .slice()
-              .sort((a, b) => a.rank - b.rank)
-              .map((img) => (
-                <img
-                  key={img.rank}
-                  src={img.url}
-                  alt={`Product image ${img.rank}`}
-                  width={80}
-                  height={80}
-                  style={{ objectFit: 'cover', borderRadius: 4, border: '1px solid #e5e7eb' }}
-                />
-              ))}
-          </div>
-        )}
-      </section>
-
-      {/* Options */}
-      <section style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Options</h2>
-        {product.options.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>None.</p>
-        ) : (
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            {product.options.map((opt) => (
-              <div key={opt.id} style={{ background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: 6, fontSize: '0.875rem' }}>
-                <strong>{opt.title}</strong>: {opt.values.join(', ')}
+          {/* Images */}
+          <Card className="p-6">
+            <h2 className="text-sm font-semibold text-slate-900 mb-4">Images</h2>
+            {product.images.length === 0 ? (
+              <p className="text-sm text-slate-400">No images.</p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {[...product.images].sort((a, b) => a.rank - b.rank).map((img) => (
+                  <img
+                    key={img.rank}
+                    src={img.url}
+                    alt={`Product image ${img.rank + 1}`}
+                    loading="lazy"
+                    className="w-20 h-20 rounded-xl object-cover border border-slate-100"
+                  />
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+            )}
+          </Card>
 
-      {/* Variants */}
-      <section>
-        <h2 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Variants</h2>
-        {product.variants.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>None.</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
-                <th style={{ padding: '0.4rem' }}>Title</th>
-                <th style={{ padding: '0.4rem' }}>SKU</th>
-                <th style={{ padding: '0.4rem' }}>Barcode</th>
-                <th style={{ padding: '0.4rem' }}>Track inv.</th>
-                <th style={{ padding: '0.4rem' }}>Backorder</th>
-              </tr>
-            </thead>
-            <tbody>
-              {product.variants.map((v) => (
-                <tr key={v.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '0.4rem' }}>{v.title}</td>
-                  <td style={{ padding: '0.4rem', color: '#6b7280' }}>{v.sku ?? '—'}</td>
-                  <td style={{ padding: '0.4rem', color: '#6b7280' }}>{v.barcode ?? '—'}</td>
-                  <td style={{ padding: '0.4rem' }}>{v.manage_inventory ? 'Yes' : 'No'}</td>
-                  <td style={{ padding: '0.4rem' }}>{v.allow_backorder ? 'Yes' : 'No'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+          {/* Variants */}
+          {product.variants.length > 0 && (
+            <Card>
+              <div className="px-6 py-4 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-900">Variants <span className="ml-1.5 text-xs font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{product.variants.length}</span></h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left px-6 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Title</th>
+                      <th className="text-left px-6 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">SKU</th>
+                      <th className="text-left px-6 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Barcode</th>
+                      <th className="text-left px-6 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Inventory</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {product.variants.map((v) => (
+                      <tr key={v.id} className="hover:bg-slate-50/50">
+                        <td className="px-6 py-3 font-medium text-slate-900">{v.title}</td>
+                        <td className="px-6 py-3 font-mono text-xs text-slate-500">{v.sku ?? <span className="text-slate-300">—</span>}</td>
+                        <td className="px-6 py-3 font-mono text-xs text-slate-500">{v.barcode ?? <span className="text-slate-300">—</span>}</td>
+                        <td className="px-6 py-3">
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${v.manage_inventory ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${v.manage_inventory ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                            {v.manage_inventory ? 'Tracked' : 'Untracked'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Options */}
+          <Card className="p-6">
+            <h2 className="text-sm font-semibold text-slate-900 mb-4">Options</h2>
+            {product.options.length === 0 ? (
+              <p className="text-sm text-slate-400">None.</p>
+            ) : (
+              <div className="space-y-3">
+                {product.options.map((opt) => (
+                  <div key={opt.id}>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">{opt.title}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {opt.values.map((v) => (
+                        <span key={v} className="px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded-md">{v}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Dimensions */}
+          {(product.weight ?? product.height ?? product.width ?? product.length) !== null && (
+            <Card className="p-6">
+              <h2 className="text-sm font-semibold text-slate-900 mb-4">Dimensions</h2>
+              <dl className="space-y-2">
+                {[['Weight', product.weight], ['Height', product.height], ['Width', product.width], ['Length', product.length]].map(([label, val]) =>
+                  val !== null ? (
+                    <div key={label as string} className="flex justify-between text-sm">
+                      <dt className="text-slate-500">{label}</dt>
+                      <dd className="font-medium text-slate-900">{val}</dd>
+                    </div>
+                  ) : null
+                )}
+              </dl>
+            </Card>
+          )}
+
+          {/* Metadata */}
+          {product.metadata && Object.keys(product.metadata).length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-sm font-semibold text-slate-900 mb-4">Metadata</h2>
+              <dl className="space-y-2">
+                {Object.entries(product.metadata).map(([k, v]) => (
+                  <div key={k} className="flex justify-between text-sm gap-2">
+                    <dt className="text-slate-500 truncate">{k}</dt>
+                    <dd className="font-medium text-slate-900 text-right">{String(v)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Delete dialog */}
       {showDelete && (
-        <DeleteDialog
-          productTitle={product.title}
+        <Dialog
+          title="Delete product?"
+          description={
+            <>
+              <strong>{product.title}</strong> and all associated images, options, and variants will be permanently removed. This cannot be undone.
+            </>
+          }
+          confirmLabel="Delete"
           onConfirm={handleDelete}
           onCancel={() => setShowDelete(false)}
-          isDeleting={deleteMutation.isPending}
+          loading={deleteMutation.isPending}
         />
       )}
     </div>

@@ -1,22 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useBatchProducts } from '@/hooks/useProducts';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import type { BatchItemResult } from '@/types/product';
 import { ApiError } from '@/types/product';
 
 const MAX_ITEMS = 100;
-
 type Tab = 'creates' | 'updates' | 'deletes';
 
 interface CreateRow { title: string }
 interface UpdateRow { id: string; title: string }
 interface DeleteRow { id: string }
-
-interface Results {
-  created: BatchItemResult[];
-  updated: BatchItemResult[];
-  deleted: BatchItemResult[];
-}
+interface Results { created: BatchItemResult[]; updated: BatchItemResult[]; deleted: BatchItemResult[] }
 
 export function BatchPage() {
   const [tab, setTab] = useState<Tab>('creates');
@@ -35,14 +32,9 @@ export function BatchPage() {
       creates.some((r) => r.title.trim()) ||
       updates.some((r) => r.id.trim() || r.title.trim()) ||
       deletes.some((r) => r.id.trim());
-    if (!hasAny) {
-      errs.general = 'Add at least one operation before submitting.';
-    }
-    // Flag whitespace-only titles (genuinely filled but invalid)
+    if (!hasAny) errs.general = 'Add at least one operation before submitting.';
     creates.forEach((r, i) => {
-      if (r.title !== '' && r.title.trim() === '') {
-        errs[`create_title_${i}`] = 'Title is required';
-      }
+      if (r.title !== '' && r.title.trim() === '') errs[`create_title_${i}`] = 'Title is required';
     });
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -69,183 +61,186 @@ export function BatchPage() {
     }
   }
 
-  const isSubmitting = batchMutation.isPending;
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'creates', label: 'Creates' },
+    { key: 'updates', label: 'Updates' },
+    { key: 'deletes', label: 'Deletes' },
+  ];
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1rem' }}>
-      <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-        <Link to="/products">Products</Link> / Batch operations
-      </div>
-      <h1 style={{ marginBottom: '1.5rem' }}>Batch operations</h1>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', marginBottom: '1.5rem' }}>
-        {(['creates', 'updates', 'deletes'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: '0.5rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer',
-              borderBottom: tab === t ? '2px solid #2563eb' : '2px solid transparent',
-              marginBottom: -2, fontWeight: tab === t ? 600 : 400, color: tab === t ? '#2563eb' : '#374151',
-            }}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
+    <div className="max-w-3xl space-y-6">
+      {/* Header */}
+      <div>
+        <nav className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+          <Link to="/products" className="hover:text-violet-600 transition-colors">Products</Link>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+          <span className="text-slate-900">Batch operations</span>
+        </nav>
+        <h1 className="text-2xl font-semibold text-slate-900">Batch operations</h1>
+        <p className="mt-1 text-sm text-slate-500">Create, update, or delete up to {MAX_ITEMS} products in one request.</p>
       </div>
 
+      {/* Error/feedback */}
       {errors.general && (
-        <div style={{ padding: '0.75rem', background: '#fee2e2', borderRadius: 4, marginBottom: '1rem' }}>
-          {errors.general}
-        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{errors.general}</div>
       )}
       {serverError && (
-        <div style={{ padding: '0.75rem', background: '#fee2e2', borderRadius: 4, marginBottom: '1rem' }}>
-          {serverError}
-        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{serverError}</div>
       )}
 
-      {/* Creates tab */}
-      {tab === 'creates' && (
-        <div>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-            Max {MAX_ITEMS} products per batch.
-          </p>
-          {creates.map((row, i) => (
-            <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
-              <input
-                placeholder="Product title *"
-                value={row.title}
-                onChange={(e) => {
-                  const rows = [...creates];
-                  rows[i] = { title: e.target.value };
-                  setCreates(rows);
-                }}
-                style={inputStyle}
-              />
-              {creates.length > 1 && (
-                <button type="button" onClick={() => setCreates(creates.filter((_, j) => j !== i))}>Remove</button>
-              )}
-              {results?.created[i] && <ResultBadge result={results.created[i]} />}
-            </div>
+      <Card>
+        {/* Tab bar */}
+        <div className="flex border-b border-slate-100">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              type="button"
+              className={`px-5 py-3 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none ${
+                tab === key
+                  ? 'text-violet-700 border-b-2 border-violet-600 -mb-px'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
           ))}
-          {creates.length < MAX_ITEMS && (
-            <button type="button" onClick={() => setCreates([...creates, { title: '' }])}>+ Add row</button>
-          )}
-          {creates.length >= MAX_ITEMS && (
-            <p style={{ color: '#f59e0b', fontSize: '0.875rem' }}>Maximum of {MAX_ITEMS} items reached.</p>
-          )}
         </div>
-      )}
 
-      {/* Updates tab */}
-      {tab === 'updates' && (
-        <div>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-            Enter the product UUID and new title. Max {MAX_ITEMS} per batch.
-          </p>
-          {updates.map((row, i) => (
-            <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
-              <input
-                placeholder="Product UUID"
-                value={row.id}
-                onChange={(e) => { const rows = [...updates]; rows[i] = { ...rows[i], id: e.target.value }; setUpdates(rows); }}
-                style={{ ...inputStyle, flex: 1 }}
-              />
-              <input
-                placeholder="New title"
-                value={row.title}
-                onChange={(e) => { const rows = [...updates]; rows[i] = { ...rows[i], title: e.target.value }; setUpdates(rows); }}
-                style={{ ...inputStyle, flex: 1 }}
-              />
-              {updates.length > 1 && (
-                <button type="button" onClick={() => setUpdates(updates.filter((_, j) => j !== i))}>Remove</button>
+        <div className="p-6 space-y-3">
+          {/* Creates */}
+          {tab === 'creates' && (
+            <>
+              {creates.map((row, i) => (
+                <div key={i} className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Product title *"
+                      value={row.title}
+                      onChange={(e) => { const rows = [...creates]; rows[i] = { title: e.target.value }; setCreates(rows); }}
+                    />
+                    {errors[`create_title_${i}`] && <p className="text-xs text-red-600 mt-1">{errors[`create_title_${i}`]}</p>}
+                  </div>
+                  {results?.created[i] && <ResultPill result={results.created[i]} />}
+                  {creates.length > 1 && (
+                    <Button aria-label="Remove" type="button" variant="ghost" size="sm" onClick={() => setCreates(creates.filter((_, j) => j !== i))}>
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {creates.length < MAX_ITEMS ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCreates([...creates, { title: '' }])}>+ Add row</Button>
+              ) : (
+                <p className="text-xs text-amber-600">Maximum of {MAX_ITEMS} items reached.</p>
               )}
-              {results?.updated[i] && <ResultBadge result={results.updated[i]} />}
-            </div>
-          ))}
-          {updates.length < MAX_ITEMS && (
-            <button type="button" onClick={() => setUpdates([...updates, { id: '', title: '' }])}>+ Add row</button>
+            </>
           )}
-        </div>
-      )}
 
-      {/* Deletes tab */}
-      {tab === 'deletes' && (
-        <div>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-            Enter product UUIDs to soft-delete. Max {MAX_ITEMS} per batch.
-          </p>
-          {deletes.map((row, i) => (
-            <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
-              <input
-                placeholder="Product UUID"
-                value={row.id}
-                onChange={(e) => { const rows = [...deletes]; rows[i] = { id: e.target.value }; setDeletes(rows); }}
-                style={inputStyle}
-              />
-              {deletes.length > 1 && (
-                <button type="button" onClick={() => setDeletes(deletes.filter((_, j) => j !== i))}>Remove</button>
+          {/* Updates */}
+          {tab === 'updates' && (
+            <>
+              {updates.map((row, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input className="flex-1" placeholder="Product UUID" value={row.id}
+                    onChange={(e) => { const rows = [...updates]; rows[i] = { ...rows[i], id: e.target.value }; setUpdates(rows); }} />
+                  <Input className="flex-1" placeholder="New title" value={row.title}
+                    onChange={(e) => { const rows = [...updates]; rows[i] = { ...rows[i], title: e.target.value }; setUpdates(rows); }} />
+                  {results?.updated[i] && <ResultPill result={results.updated[i]} />}
+                  {updates.length > 1 && (
+                    <Button aria-label="Remove" type="button" variant="ghost" size="sm" onClick={() => setUpdates(updates.filter((_, j) => j !== i))}>
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {updates.length < MAX_ITEMS && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setUpdates([...updates, { id: '', title: '' }])}>+ Add row</Button>
               )}
-              {results?.deleted[i] && <ResultBadge result={results.deleted[i]} />}
-            </div>
-          ))}
-          {deletes.length < MAX_ITEMS && (
-            <button type="button" onClick={() => setDeletes([...deletes, { id: '' }])}>+ Add row</button>
+            </>
+          )}
+
+          {/* Deletes */}
+          {tab === 'deletes' && (
+            <>
+              {deletes.map((row, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input className="flex-1" placeholder="Product UUID" value={row.id}
+                    onChange={(e) => { const rows = [...deletes]; rows[i] = { id: e.target.value }; setDeletes(rows); }} />
+                  {results?.deleted[i] && <ResultPill result={results.deleted[i]} />}
+                  {deletes.length > 1 && (
+                    <Button aria-label="Remove" type="button" variant="ghost" size="sm" onClick={() => setDeletes(deletes.filter((_, j) => j !== i))}>
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {deletes.length < MAX_ITEMS && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setDeletes([...deletes, { id: '' }])}>+ Add row</Button>
+              )}
+            </>
           )}
         </div>
-      )}
 
-      {/* Submit */}
-      <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
-        <button
-          onClick={() => void handleSubmit()}
-          disabled={isSubmitting}
-          style={{ fontWeight: 600 }}
-        >
-          {isSubmitting ? 'Running batch…' : 'Run batch'}
-        </button>
-        <Link to="/products">
-          <button type="button">Cancel</button>
-        </Link>
-      </div>
-
-      {/* Summary results */}
-      {results && !isSubmitting && (
-        <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f9fafb', borderRadius: 6 }}>
-          <h2 style={{ fontSize: '1rem', marginTop: 0 }}>Results</h2>
-          {[
-            { label: 'Created', items: results.created },
-            { label: 'Updated', items: results.updated },
-            { label: 'Deleted', items: results.deleted },
-          ].map(({ label, items }) =>
-            items.length > 0 ? (
-              <div key={label} style={{ marginBottom: '0.75rem' }}>
-                <strong>{label}:</strong>{' '}
-                {items.filter((r) => r.success).length} succeeded,{' '}
-                {items.filter((r) => !r.success).length} failed
-              </div>
-            ) : null,
-          )}
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-4">
+          <Link to="/products"><Button type="button" variant="ghost" size="sm">Cancel</Button></Link>
+          <Button variant="primary" onClick={() => void handleSubmit()} loading={batchMutation.isPending}>
+            Run batch
+          </Button>
         </div>
+      </Card>
+
+      {/* Results summary */}
+      {results && !batchMutation.isPending && (
+        <Card className="p-6">
+          <h3 className="text-sm font-semibold text-slate-900 mb-4">Results</h3>
+          <div className="space-y-2">
+            {[
+              { label: 'Created', items: results.created },
+              { label: 'Updated', items: results.updated },
+              { label: 'Deleted', items: results.deleted },
+            ].filter(({ items }) => items.length > 0).map(({ label, items }) => {
+              const ok = items.filter((r) => r.success).length;
+              const fail = items.filter((r) => !r.success).length;
+              return (
+                <div key={label} className="flex items-center justify-between text-sm py-2 border-b border-slate-50 last:border-0">
+                  <span className="font-medium text-slate-700">{label}</span>
+                  <div className="flex items-center gap-3">
+                    {ok > 0 && <span className="text-emerald-600 font-medium">{ok} succeeded</span>}
+                    {fail > 0 && <span className="text-red-600 font-medium">{fail} failed</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
     </div>
   );
 }
 
-function ResultBadge({ result }: { result: BatchItemResult }) {
-  if (result.success) {
-    return <span style={{ color: '#065f46', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>✓ OK</span>;
-  }
-  return (
-    <span style={{ color: '#991b1b', fontSize: '0.75rem', whiteSpace: 'nowrap' }} title={result.errorMessage ?? ''}>
-      ✗ {result.errorCode ?? 'Error'}
+function ResultPill({ result }: { result: BatchItemResult }) {
+  return result.success ? (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-lg flex-shrink-0">
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      </svg>
+      OK
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-red-50 text-red-700 rounded-lg flex-shrink-0" title={result.errorMessage ?? ''}>
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+      </svg>
+      {result.errorCode ?? 'Error'}
     </span>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  flex: 1, padding: '0.4rem 0.6rem', border: '1px solid #d1d5db',
-  borderRadius: 4, fontSize: '0.875rem', boxSizing: 'border-box',
-};

@@ -1,43 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useProduct, useCreateProduct, useUpdateProduct } from '@/hooks/useProducts';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Input, Select, Textarea, Field } from '@/components/ui/Input';
 import { PRODUCT_STATUSES } from '@/types/product';
 import type { ProductStatus, ProductImageRequest, ProductOptionRequest, ProductVariantRequest } from '@/types/product';
 import { ApiError } from '@/types/product';
 
-interface Props {
-  mode: 'create' | 'edit';
-}
-
-interface OptionRow {
-  title: string;
-  values: string; // comma-separated
-}
-
-interface VariantRow {
-  title: string;
-  sku: string;
-  barcode: string;
-  manageInventory: boolean;
-  allowBackorder: boolean;
-}
-
+interface Props { mode: 'create' | 'edit' }
+interface OptionRow { title: string; values: string }
+interface VariantRow { title: string; sku: string; barcode: string; manageInventory: boolean; allowBackorder: boolean }
 interface FormState {
-  title: string;
-  handle: string;
-  status: ProductStatus;
-  description: string;
-  subtitle: string;
-  weight: string;
-  height: string;
-  width: string;
-  length: string;
-  thumbnail: string;
-  externalId: string;
-  metadata: string; // JSON string
-  images: string[]; // URLs
-  options: OptionRow[];
-  variants: VariantRow[];
+  title: string; handle: string; status: ProductStatus; description: string; subtitle: string;
+  weight: string; height: string; width: string; length: string;
+  thumbnail: string; externalId: string; metadata: string;
+  images: string[]; options: OptionRow[]; variants: VariantRow[];
 }
 
 const EMPTY_FORM: FormState = {
@@ -63,7 +41,6 @@ export function ProductFormPage({ mode }: Props) {
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct(id);
 
-  // Pre-populate form from existing product
   useEffect(() => {
     if (!existing) return;
     setForm({
@@ -98,8 +75,6 @@ export function ProductFormPage({ mode }: Props) {
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!form.title.trim()) errs.title = 'Title is required';
-    // Only flag an image row when the user has started typing but left it whitespace-only.
-    // Completely empty rows are filtered out on submit (no images = valid).
     form.images.forEach((url, i) => {
       if (url.length > 0 && url.trim() === '') errs[`image_${i}`] = 'Image URL is required';
     });
@@ -119,59 +94,38 @@ export function ProductFormPage({ mode }: Props) {
     setServerError('');
     if (!validate()) return;
 
-    const images: ProductImageRequest[] = form.images
-      .filter((u) => u.trim())
-      .map((url) => ({ url }));
-
-    const options: ProductOptionRequest[] = form.options
-      .filter((o) => o.title.trim())
-      .map((o) => ({ title: o.title, values: o.values.split(',').map((v) => v.trim()).filter(Boolean) }));
-
-    const variants: ProductVariantRequest[] = form.variants.map((v) => ({
-      title: v.title || null,
-      sku: v.sku || null,
-      barcode: v.barcode || null,
-      manage_inventory: v.manageInventory,
-      allow_backorder: v.allowBackorder,
+    const images: ProductImageRequest[] = form.images.filter((u) => u.trim()).map((url) => ({ url }));
+    const options: ProductOptionRequest[] = form.options.filter((o) => o.title.trim()).map((o) => ({
+      title: o.title, values: o.values.split(',').map((v) => v.trim()).filter(Boolean),
     }));
-
+    const variants: ProductVariantRequest[] = form.variants.map((v) => ({
+      title: v.title || null, sku: v.sku || null, barcode: v.barcode || null,
+      manage_inventory: v.manageInventory, allow_backorder: v.allowBackorder,
+    }));
     let metadata: Record<string, unknown> | null = null;
     if (form.metadata.trim()) {
       try { metadata = JSON.parse(form.metadata) as Record<string, unknown>; } catch { /* validated above */ }
     }
 
     const body = {
-      title: form.title.trim(),
-      handle: form.handle.trim() || null,
-      status: form.status,
-      description: form.description.trim() || null,
-      subtitle: form.subtitle.trim() || null,
-      weight: parseDecimal(form.weight),
-      height: parseDecimal(form.height),
-      width: parseDecimal(form.width),
-      length: parseDecimal(form.length),
-      thumbnail: form.thumbnail.trim() || null,
-      external_id: form.externalId.trim() || null,
-      metadata,
-      images: images.length > 0 ? images : null,
-      options: options.length > 0 ? options : null,
-      variants: variants.length > 0 ? variants : null,
+      title: form.title.trim(), handle: form.handle.trim() || null, status: form.status,
+      description: form.description.trim() || null, subtitle: form.subtitle.trim() || null,
+      weight: parseDecimal(form.weight), height: parseDecimal(form.height),
+      width: parseDecimal(form.width), length: parseDecimal(form.length),
+      thumbnail: form.thumbnail.trim() || null, external_id: form.externalId.trim() || null,
+      metadata, images: images.length > 0 ? images : null,
+      options: options.length > 0 ? options : null, variants: variants.length > 0 ? variants : null,
     };
 
     try {
-      let saved;
-      if (isEdit) {
-        saved = await updateMutation.mutateAsync(body);
-      } else {
-        saved = await createMutation.mutateAsync(body);
-      }
+      const saved = isEdit
+        ? await updateMutation.mutateAsync(body)
+        : await createMutation.mutateAsync(body);
       navigate(`/products/${saved.id}`);
     } catch (err) {
       if (err instanceof ApiError) {
         setServerError(err.message);
-        if (err.problem.field_errors) {
-          setErrors((prev) => ({ ...prev, ...err.problem.field_errors }));
-        }
+        if (err.problem.field_errors) setErrors((prev) => ({ ...prev, ...err.problem.field_errors }));
       } else {
         setServerError('An unexpected error occurred.');
       }
@@ -181,204 +135,199 @@ export function ProductFormPage({ mode }: Props) {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   if (isEdit && loadingProduct) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading…</div>;
+    return (
+      <div className="max-w-2xl space-y-4">
+        <div className="h-8 w-48 bg-slate-200 rounded-md animate-pulse" />
+        <Card className="p-6 space-y-4">
+          {[1,2,3,4].map((i) => <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />)}
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1rem' }}>
-      <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-        <Link to="/products">Products</Link>
-        {isEdit && existing && <> / <Link to={`/products/${id}`}>{existing.title}</Link></>}
-        {' '} / {isEdit ? 'Edit' : 'New product'}
-      </div>
+    <div className="max-w-2xl space-y-6">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm text-slate-500">
+        <Link to="/products" className="hover:text-violet-600 transition-colors">Products</Link>
+        {isEdit && existing && (
+          <>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+            <Link to={`/products/${id}`} className="hover:text-violet-600 transition-colors truncate max-w-xs">{existing.title}</Link>
+          </>
+        )}
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+        <span className="text-slate-900">{isEdit ? 'Edit' : 'New product'}</span>
+      </nav>
 
-      <h1 style={{ marginBottom: '1.5rem' }}>{isEdit ? 'Edit product' : 'Create product'}</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">{isEdit ? 'Edit product' : 'Create product'}</h1>
 
       {serverError && (
-        <div style={{ padding: '0.75rem', background: '#fee2e2', borderRadius: 4, marginBottom: '1rem' }}>
-          {serverError}
-        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{serverError}</div>
       )}
 
-      <form onSubmit={(e) => { void handleSubmit(e); }} noValidate>
-        <Field label="Title *" error={errors.title}>
-          <input value={form.title} onChange={(e) => set('title', e.target.value)} style={inputStyle} />
-        </Field>
+      <form onSubmit={(e) => { void handleSubmit(e); }} noValidate className="space-y-6">
 
-        <Field label="Handle" hint="Auto-generated from title if left blank">
-          <input value={form.handle} onChange={(e) => set('handle', e.target.value)} style={inputStyle} />
-        </Field>
-
-        <Field label="Status">
-          <select value={form.status} onChange={(e) => set('status', e.target.value as ProductStatus)} style={inputStyle}>
-            {PRODUCT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </Field>
-
-        <Field label="Description">
-          <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} style={inputStyle} />
-        </Field>
-
-        <Field label="Subtitle">
-          <input value={form.subtitle} onChange={(e) => set('subtitle', e.target.value)} style={inputStyle} />
-        </Field>
-
-        <Field label="Thumbnail URL">
-          <input value={form.thumbnail} onChange={(e) => set('thumbnail', e.target.value)} style={inputStyle} />
-        </Field>
-
-        <Field label="External ID">
-          <input value={form.externalId} onChange={(e) => set('externalId', e.target.value)} style={inputStyle} />
-        </Field>
+        {/* Core info */}
+        <Card className="p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">Basic information</h2>
+          <Field label="Title" required error={errors.title}>
+            <Input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Classic Sneaker" />
+          </Field>
+          <Field label="Handle" hint="Auto-generated from title if blank">
+            <Input value={form.handle} onChange={(e) => set('handle', e.target.value)} placeholder="classic-sneaker" />
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Status">
+              <Select value={form.status} onChange={(e) => set('status', e.target.value as ProductStatus)}>
+                {PRODUCT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </Select>
+            </Field>
+            <Field label="External ID">
+              <Input value={form.externalId} onChange={(e) => set('externalId', e.target.value)} placeholder="EXT-001" />
+            </Field>
+          </div>
+          <Field label="Description">
+            <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder="Full product description…" />
+          </Field>
+          <Field label="Subtitle">
+            <Input value={form.subtitle} onChange={(e) => set('subtitle', e.target.value)} placeholder="Short tagline" />
+          </Field>
+          <Field label="Thumbnail URL">
+            <Input value={form.thumbnail} onChange={(e) => set('thumbnail', e.target.value)} placeholder="https://cdn.example.com/thumb.jpg" />
+          </Field>
+        </Card>
 
         {/* Dimensions */}
-        <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: 4, padding: '1rem', marginBottom: '1rem' }}>
-          <legend style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0 4px' }}>Dimensions</legend>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+        <Card className="p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">Dimensions</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {(['weight', 'height', 'width', 'length'] as const).map((dim) => (
               <Field key={dim} label={dim.charAt(0).toUpperCase() + dim.slice(1)}>
-                <input
-                  type="number" step="any" value={form[dim]}
-                  onChange={(e) => set(dim, e.target.value)}
-                  style={inputStyle}
-                />
+                <Input type="number" step="any" value={form[dim]} onChange={(e) => set(dim, e.target.value)} placeholder="0.00" />
               </Field>
             ))}
           </div>
-        </fieldset>
-
-        {/* Metadata */}
-        <Field label="Metadata (JSON)" error={errors.metadata}>
-          <textarea
-            value={form.metadata}
-            onChange={(e) => set('metadata', e.target.value)}
-            rows={3}
-            placeholder='{"brand": "Acme"}'
-            style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.8rem' }}
-          />
-        </Field>
+        </Card>
 
         {/* Images */}
-        <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: 4, padding: '1rem', marginBottom: '1rem' }}>
-          <legend style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0 4px' }}>Images</legend>
+        <Card className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Images</h2>
+            <Button type="button" variant="ghost" size="sm" onClick={() => set('images', [...form.images, ''])}>
+              + Add image
+            </Button>
+          </div>
           {form.images.map((url, i) => (
-            <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
-              <input
-                value={url}
-                onChange={(e) => {
-                  const imgs = [...form.images];
-                  imgs[i] = e.target.value;
-                  set('images', imgs);
-                }}
-                placeholder="https://cdn.example.com/image.jpg"
-                style={{ ...inputStyle, flex: 1 }}
-              />
+            <div key={i} className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  value={url}
+                  onChange={(e) => { const imgs = [...form.images]; imgs[i] = e.target.value; set('images', imgs); }}
+                  placeholder="https://cdn.example.com/image.jpg"
+                />
+                {errors[`image_${i}`] && <p className="text-xs text-red-600 mt-1">{errors[`image_${i}`]}</p>}
+              </div>
               {form.images.length > 1 && (
-                <button type="button" onClick={() => set('images', form.images.filter((_, j) => j !== i))}>
-                  Remove
-                </button>
+                <Button aria-label="Remove" type="button" variant="ghost" size="sm" onClick={() => set('images', form.images.filter((_, j) => j !== i))}>
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Button>
               )}
-              {errors[`image_${i}`] && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors[`image_${i}`]}</span>}
             </div>
           ))}
-          <button type="button" onClick={() => set('images', [...form.images, ''])}>+ Add image</button>
-        </fieldset>
+        </Card>
 
         {/* Options */}
-        <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: 4, padding: '1rem', marginBottom: '1rem' }}>
-          <legend style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0 4px' }}>Options</legend>
+        <Card className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Options</h2>
+            <Button type="button" variant="ghost" size="sm" onClick={() => set('options', [...form.options, { title: '', values: '' }])}>
+              + Add option
+            </Button>
+          </div>
+          {form.options.length === 0 && <p className="text-sm text-slate-400">No options added yet.</p>}
           {form.options.map((opt, i) => (
-            <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <input
-                  placeholder="Name (e.g. Size)"
-                  value={opt.title}
-                  onChange={(e) => {
-                    const opts = [...form.options];
-                    opts[i] = { ...opts[i], title: e.target.value };
-                    set('options', opts);
-                  }}
-                  style={inputStyle}
-                />
-                {errors[`option_title_${i}`] && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors[`option_title_${i}`]}</span>}
+            <div key={i} className="flex gap-3 items-start">
+              <div className="flex-1 space-y-1">
+                <Input placeholder="Name (e.g. Size)" value={opt.title}
+                  onChange={(e) => { const opts = [...form.options]; opts[i] = { ...opts[i], title: e.target.value }; set('options', opts); }} />
+                {errors[`option_title_${i}`] && <p className="text-xs text-red-600">{errors[`option_title_${i}`]}</p>}
               </div>
-              <div style={{ flex: 1 }}>
-                <input
-                  placeholder="Values (comma-separated)"
-                  value={opt.values}
-                  onChange={(e) => {
-                    const opts = [...form.options];
-                    opts[i] = { ...opts[i], values: e.target.value };
-                    set('options', opts);
-                  }}
-                  style={inputStyle}
-                />
-                {errors[`option_values_${i}`] && <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors[`option_values_${i}`]}</span>}
+              <div className="flex-1 space-y-1">
+                <Input placeholder="Values (comma-separated)" value={opt.values}
+                  onChange={(e) => { const opts = [...form.options]; opts[i] = { ...opts[i], values: e.target.value }; set('options', opts); }} />
+                {errors[`option_values_${i}`] && <p className="text-xs text-red-600">{errors[`option_values_${i}`]}</p>}
               </div>
-              <button type="button" onClick={() => set('options', form.options.filter((_, j) => j !== i))}>Remove</button>
+              <Button aria-label="Remove" type="button" variant="ghost" size="sm" onClick={() => set('options', form.options.filter((_, j) => j !== i))} className="mt-0.5">
+                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </Button>
             </div>
           ))}
-          <button type="button" onClick={() => set('options', [...form.options, { title: '', values: '' }])}>+ Add option</button>
-        </fieldset>
+        </Card>
 
         {/* Variants */}
-        <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: 4, padding: '1rem', marginBottom: '1.5rem' }}>
-          <legend style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0 4px' }}>Variants</legend>
+        <Card className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Variants</h2>
+            <Button type="button" variant="ghost" size="sm" onClick={() => set('variants', [...form.variants, { title: '', sku: '', barcode: '', manageInventory: false, allowBackorder: false }])}>
+              + Add variant
+            </Button>
+          </div>
+          {form.variants.length === 0 && <p className="text-sm text-slate-400">No variants added yet.</p>}
           {form.variants.map((v, i) => (
-            <div key={i} style={{ borderBottom: '1px solid #f3f4f6', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                <input placeholder="Title (auto-generated)" value={v.title} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], title: e.target.value }; set('variants', vs); }} style={inputStyle} />
-                <input placeholder="SKU" value={v.sku} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], sku: e.target.value }; set('variants', vs); }} style={inputStyle} />
-                <input placeholder="Barcode" value={v.barcode} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], barcode: e.target.value }; set('variants', vs); }} style={inputStyle} />
+            <div key={i} className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <Input placeholder="Title" value={v.title} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], title: e.target.value }; set('variants', vs); }} />
+                <Input placeholder="SKU" value={v.sku} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], sku: e.target.value }; set('variants', vs); }} />
+                <Input placeholder="Barcode" value={v.barcode} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], barcode: e.target.value }; set('variants', vs); }} />
               </div>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', fontSize: '0.875rem' }}>
-                <label>
-                  <input type="checkbox" checked={v.manageInventory} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], manageInventory: e.target.checked }; set('variants', vs); }} />
-                  {' '}Track inventory
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded accent-violet-600 cursor-pointer" checked={v.manageInventory}
+                    onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], manageInventory: e.target.checked }; set('variants', vs); }} />
+                  <span className="text-sm text-slate-600">Track inventory</span>
                 </label>
-                <label>
-                  <input type="checkbox" checked={v.allowBackorder} onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], allowBackorder: e.target.checked }; set('variants', vs); }} />
-                  {' '}Allow backorder
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded accent-violet-600 cursor-pointer" checked={v.allowBackorder}
+                    onChange={(e) => { const vs = [...form.variants]; vs[i] = { ...vs[i], allowBackorder: e.target.checked }; set('variants', vs); }} />
+                  <span className="text-sm text-slate-600">Allow backorder</span>
                 </label>
-                <button type="button" onClick={() => set('variants', form.variants.filter((_, j) => j !== i))}>Remove</button>
+                <Button type="button" variant="ghost" size="sm" className="ml-auto text-slate-400 hover:text-red-500"
+                  onClick={() => set('variants', form.variants.filter((_, j) => j !== i))}>
+                  Remove
+                </Button>
               </div>
             </div>
           ))}
-          <button type="button" onClick={() => set('variants', [...form.variants, { title: '', sku: '', barcode: '', manageInventory: false, allowBackorder: false }])}>+ Add variant</button>
-        </fieldset>
+        </Card>
+
+        {/* Metadata */}
+        <Card className="p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">Metadata</h2>
+          <Field label="JSON metadata" error={errors.metadata}>
+            <Textarea value={form.metadata} onChange={(e) => set('metadata', e.target.value)}
+              rows={4} placeholder={'{\n  "brand": "Acme",\n  "season": "SS26"\n}'} className="font-mono text-xs" />
+          </Field>
+        </Card>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button type="submit" disabled={isSubmitting} style={{ fontWeight: 600 }}>
-            {isSubmitting ? 'Saving…' : isEdit ? 'Save changes' : 'Create product'}
-          </button>
+        <div className="flex items-center justify-end gap-3 pt-2">
           <Link to={isEdit ? `/products/${id}` : '/products'}>
-            <button type="button">Cancel</button>
+            <Button type="button" variant="secondary">Cancel</Button>
           </Link>
+          <Button type="submit" variant="primary" loading={isSubmitting}>
+            {isEdit ? 'Save changes' : 'Create product'}
+          </Button>
         </div>
       </form>
-    </div>
-  );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '0.4rem 0.6rem', border: '1px solid #d1d5db',
-  borderRadius: 4, fontSize: '0.875rem', boxSizing: 'border-box',
-};
-
-function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: '0.75rem' }}>
-      <label style={{ display: 'block', fontWeight: 500, fontSize: '0.875rem' }}>
-        <span style={{ display: 'block', marginBottom: '0.25rem' }}>
-          {label}
-          {hint && <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: '0.25rem' }}>— {hint}</span>}
-        </span>
-        {children}
-      </label>
-      {error && <p style={{ margin: '0.25rem 0 0', color: '#dc2626', fontSize: '0.75rem' }}>{error}</p>}
     </div>
   );
 }

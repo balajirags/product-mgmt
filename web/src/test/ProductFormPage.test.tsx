@@ -115,7 +115,7 @@ describe('ProductFormPage — create mode', () => {
     const user = userEvent.setup();
     renderCreate();
     await user.type(screen.getAllByRole('textbox')[0], 'Test Product');
-    const metadataArea = screen.getByPlaceholderText(/{"brand"/i);
+    const metadataArea = screen.getByPlaceholderText(/brand.*Acme/i);
     await user.type(metadataArea, '{{not valid json');
     await user.click(screen.getByRole('button', { name: /^create product$/i }));
     expect(screen.getByText(/invalid json/i)).toBeDefined();

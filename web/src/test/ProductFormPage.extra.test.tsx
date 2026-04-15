@@ -121,7 +121,8 @@ describe('ProductFormPage — options and images', () => {
     await user.click(screen.getByRole('button', { name: /\+ add image/i }));
     const removeImgBtn = screen.getAllByRole('button', { name: /^remove$/i })[0];
     await user.click(removeImgBtn);
-    expect(screen.getAllByPlaceholderText(/cdn\.example\.com/).length).toBe(1);
+    // Image inputs use "...image.jpg" placeholder; thumbnail is "...thumb.jpg" — use specific one
+    expect(screen.getAllByPlaceholderText(/cdn\.example\.com\/image\.jpg/).length).toBe(1);
   });
 
   it('option with blank title shows validation error on submit', async () => {
@@ -174,8 +175,8 @@ describe('ProductFormPage — edit mode', () => {
       isLoading: true, isError: false, error: null, data: undefined, refetch: vi.fn(),
     } as unknown as unknown as ReturnType<typeof hooks.useProduct>);
 
-    renderEdit('00000000-0000-0000-0000-000000000001');
-    expect(screen.getByText(/loading/i)).toBeDefined();
+    const { container } = renderEdit('00000000-0000-0000-0000-000000000001');
+    expect(container.querySelector('.animate-pulse')).not.toBeNull();
   });
 
   it('shows Save changes button in edit mode', () => {
@@ -193,7 +194,8 @@ describe('ProductFormPage — edit mode', () => {
     } as unknown as unknown as ReturnType<typeof hooks.useProduct>);
 
     renderEdit('00000000-0000-0000-0000-000000000001');
-    const imageInput = screen.getAllByPlaceholderText(/cdn\.example\.com/)[0] as HTMLInputElement;
+    // The images section input has placeholder "...image.jpg"
+    const imageInput = screen.getByPlaceholderText(/cdn\.example\.com\/image\.jpg/) as HTMLInputElement;
     expect(imageInput.value).toContain('cdn.example.com/img.jpg');
   });
 
