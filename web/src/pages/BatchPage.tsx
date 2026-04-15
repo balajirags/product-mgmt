@@ -38,16 +38,9 @@ export function BatchPage() {
     if (!hasAny) {
       errs.general = 'Add at least one operation before submitting.';
     }
+    // Flag whitespace-only titles (genuinely filled but invalid)
     creates.forEach((r, i) => {
-      if (r.title === '' && creates.some((c) => c.title.trim())) {
-        // skip intentionally blank rows only if they're not in use
-      }
-      if (creates.filter((c) => c.title.trim()).length > 0 && !r.title.trim() && creates.length > 1) {
-        // blank rows among non-blank rows
-      }
-      if (r.title.trim() === '' && creates.length === 1) {
-        // allow single blank row in creates (user hasn't filled anything)
-      } else if (r.title !== '' && r.title.trim() === '') {
+      if (r.title !== '' && r.title.trim() === '') {
         errs[`create_title_${i}`] = 'Title is required';
       }
     });

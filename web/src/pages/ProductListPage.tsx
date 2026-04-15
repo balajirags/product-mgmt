@@ -116,7 +116,7 @@ export function ProductListPage() {
               >
                 <td style={{ padding: '0.5rem' }}>
                   {p.thumbnail ? (
-                    <img src={p.thumbnail} alt="" width={40} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />
+                    <img src={p.thumbnail} alt={p.title} width={40} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />
                   ) : (
                     <div style={{ width: 40, height: 40, background: '#e5e7eb', borderRadius: 4 }} />
                   )}

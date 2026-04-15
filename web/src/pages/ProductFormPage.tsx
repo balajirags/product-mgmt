@@ -98,8 +98,10 @@ export function ProductFormPage({ mode }: Props) {
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!form.title.trim()) errs.title = 'Title is required';
+    // Only flag an image row when the user has started typing but left it whitespace-only.
+    // Completely empty rows are filtered out on submit (no images = valid).
     form.images.forEach((url, i) => {
-      if (url.trim() === '') errs[`image_${i}`] = 'Image URL is required';
+      if (url.length > 0 && url.trim() === '') errs[`image_${i}`] = 'Image URL is required';
     });
     form.options.forEach((opt, i) => {
       if (!opt.title.trim()) errs[`option_title_${i}`] = 'Option name is required';
@@ -369,11 +371,13 @@ const inputStyle: React.CSSProperties = {
 function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '0.75rem' }}>
-      <label style={{ display: 'block', fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.25rem' }}>
-        {label}
-        {hint && <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: '0.25rem' }}>— {hint}</span>}
+      <label style={{ display: 'block', fontWeight: 500, fontSize: '0.875rem' }}>
+        <span style={{ display: 'block', marginBottom: '0.25rem' }}>
+          {label}
+          {hint && <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: '0.25rem' }}>— {hint}</span>}
+        </span>
+        {children}
       </label>
-      {children}
       {error && <p style={{ margin: '0.25rem 0 0', color: '#dc2626', fontSize: '0.75rem' }}>{error}</p>}
     </div>
   );

@@ -28,8 +28,8 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       thresholds: {
-        lines: 80,
-        branches: 75,
+        lines: 90,
+        branches: 85,
       },
     },
   },

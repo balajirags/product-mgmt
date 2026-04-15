@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApiError } from '@/types/product';
 
 // Mock global fetch
@@ -15,8 +15,7 @@ function makeResponse(body: unknown, status = 200): Response {
 }
 
 describe('API client', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
-  afterEach(() => { vi.restoreAllMocks(); });
+  beforeEach(() => { vi.resetAllMocks(); });
 
   it('listProducts — returns PagedProductResponse', async () => {
     const payload = { content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 };
@@ -96,5 +95,47 @@ describe('API client', () => {
     }, 409));
     const { createProduct } = await import('@/lib/api');
     await expect(createProduct({ title: 'Test' })).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('updateProduct — sends POST to /products/:id', async () => {
+    const updated = { id: 'abc', title: 'Updated', status: 'PUBLISHED', images: [], options: [], variants: [] };
+    mockFetch.mockResolvedValueOnce(makeResponse(updated));
+    const { updateProduct } = await import('@/lib/api');
+    const result = await updateProduct('abc', { title: 'Updated' });
+    expect(result.title).toBe('Updated');
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/products/abc');
+    expect(init.method).toBe('POST');
+  });
+
+  it('batchProducts — sends POST to /products/batch', async () => {
+    const batchResponse = { created: [], updated: [], deleted: [] };
+    mockFetch.mockResolvedValueOnce(makeResponse(batchResponse));
+    const { batchProducts } = await import('@/lib/api');
+    const result = await batchProducts({ create: [{ title: 'A' }] });
+    expect(result.created).toHaveLength(0);
+    const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/products/batch');
+  });
+
+  it('network error (non-Error thrown) is re-wrapped', async () => {
+    mockFetch.mockRejectedValueOnce('string error');
+    const { getProduct } = await import('@/lib/api');
+    await expect(getProduct('abc')).rejects.toThrow('Network error');
+  });
+
+  it('malformed error body falls back to status text', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      json: () => Promise.reject(new Error('not json')),
+    } as unknown as Response);
+    const { getProduct } = await import('@/lib/api');
+    let caught: unknown;
+    try { await getProduct('abc'); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(ApiError);
+    expect((caught as ApiError).status).toBe(500);
+    expect((caught as ApiError).problem.title).toBe('Internal Server Error');
   });
 });
