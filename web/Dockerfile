@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ARG VITE_API_BASE_URL=http://localhost:8080
+ARG VITE_API_BASE_URL=
 ARG VITE_ENV=nonprod
 RUN npm run build
 
