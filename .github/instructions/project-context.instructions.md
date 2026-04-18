@@ -52,7 +52,7 @@ The Inventory Service is the **source of truth** for product stock quantities, m
 
 | Area               | Path                                          |
 |--------------------|-----------------------------------------------|
-| **Workspace repo for backend** | `/Users/gbalaji/projects/tw/ai-demo-jira/demo`         |
+| **Workspace repo for backend** | `/Users/gbalaji/projects/personal/product-mgmt/backend`         |
 | **Backend source** | `src/main/java/com/inventory/demo/`         |
 | **Backend tests**  | `src/test/java/com/inventory/demo/`         |
 | **Resources**      | `src/main/resources/`                         |

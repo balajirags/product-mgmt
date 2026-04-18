@@ -5,14 +5,14 @@
 ---
 
 ## Project
-name: Demo                     # REQUIRED
+name: Product Management        # REQUIRED
 description: >                       # REQUIRED — one paragraph
   Currently this is purely a backend service implmenting, weather, location management and Product management
 mode: new-app                        # REQUIRED: new-app | feature | refactor
 
 ## Input Artifact
 type: openapi                            # REQUIRED: prd | openapi | er-diagram | capabilities | story | jira-key
-file: /Users/gbalaji/projects/personal/ai-demo-jira/demo/src/main/resources/api-specs/product-api.yml                    # 
+file: /Users/gbalaji/projects/personal/product-mgmt/backend/src/main/resources/api-specs/product-api.yml                    # 
 
 ## App Type
 type: frontend-spa                  # REQUIRED: backend-api | fullstack | frontend-spa | mobile | cli | microservice
@@ -32,7 +32,7 @@ type: frontend-spa                  # REQUIRED: backend-api | fullstack | fronte
 # llm-tracing: LangSmith            # LangSmith | Langfuse | OpenTelemetry | none
 
 ## Workspace
-local-path: /Users/gbalaji/projects/personal/ai-demo-jira
+local-path: /Users/gbalaji/projects/personal/product-mgmt
    # Absolute path on local machine (auto-detected by guild init)
 git-url: https://github.com/balajirags/agent-location-demo  # Remote git URL (auto-detected from git remote)
 default-branch: main                 # Default branch for PRs (default: main)
