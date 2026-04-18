@@ -1,0 +1,30 @@
+meta {
+  name: List Products - Pagination
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products?page=0&size=2
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.page: eq 0
+  res.body.size: eq 2
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("should respect page size", function() {
+    const body = res.getBody();
+    expect(body.content.length).to.be.at.most(2);
+    expect(body.size).to.equal(2);
+    expect(body.page).to.equal(0);
+  });
+}

@@ -1,0 +1,28 @@
+meta {
+  name: List Products - Filter by Status
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products?status=PUBLISHED
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("should only return PUBLISHED products", function() {
+    const body = res.getBody();
+    body.content.forEach(function(product) {
+      expect(product.status).to.equal("PUBLISHED");
+    });
+  });
+}

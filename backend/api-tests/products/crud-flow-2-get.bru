@@ -1,0 +1,38 @@
+meta {
+  name: CRUD Flow - Step 2 - Get Product by ID
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/api/v1/products/{{productId}}
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+  res.body.title: eq CRUD Flow Product
+  res.body.thumbnail: eq https://example.com/thumb.jpg
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("should return the created product", function() {
+    const body = res.getBody();
+    expect(body.id).to.equal(bru.getVar("productId"));
+    expect(body.title).to.equal("CRUD Flow Product");
+    expect(body.description).to.equal("Product for full CRUD lifecycle test");
+  });
+
+  test("should return thumbnail and images", function() {
+    const body = res.getBody();
+    expect(body.thumbnail).to.equal("https://example.com/thumb.jpg");
+    expect(body.images).to.be.an("array").with.lengthOf(2);
+    expect(body.images[0].rank).to.equal(0);
+    expect(body.images[1].rank).to.equal(1);
+  });
+}
