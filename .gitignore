@@ -63,4 +63,10 @@ coverage/
 .github/
 .vscode
 CLAUDE.md
-memories/*
+memories/
+web/node_modules/
+web/dist/
+web/coverage/
+web/test-results/
+web/playwright-report/
+guild-input.md
